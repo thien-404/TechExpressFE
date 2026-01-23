@@ -24,10 +24,9 @@ const SideLink = ({ to, icon: Icon, children, end }) => (
       `
       flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium
       transition
-      ${
-        isActive
-          ? 'bg-emerald-50 text-emerald-600'
-          : 'text-slate-600 hover:bg-slate-100'
+      ${isActive
+        ? 'bg-emerald-50 text-emerald-600'
+        : 'text-slate-600 hover:bg-slate-100'
       }
       `
     }
@@ -61,10 +60,9 @@ const DropdownItem = ({ to, icon: Icon, children }) => (
     className={({ isActive }) =>
       `
       flex items-center gap-3 pl-12 pr-4 py-2 text-sm rounded-md
-      ${
-        isActive
-          ? 'bg-emerald-50 text-emerald-600'
-          : 'text-slate-600 hover:bg-slate-100'
+      ${isActive
+        ? 'bg-emerald-50 text-emerald-600'
+        : 'text-slate-600 hover:bg-slate-100'
       }
       `
     }
@@ -84,9 +82,11 @@ export default function AdminSidebar() {
     <aside className="w-64 min-h-screen bg-white border-r border-slate-200">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-slate-200">
-        <span className="text-lg font-semibold text-slate-800">
-          Admin Panel
-        </span>
+        <NavLink to="/" className="flex items-center gap-2">
+            <div className="text-2xl font-bold text-white tracking-wide">
+              <span className='text-sky-600'>Tech</span><span className="text-yellow-400">Express</span>
+            </div>
+          </NavLink>
       </div>
 
       <nav className="p-3 space-y-1">
@@ -94,57 +94,35 @@ export default function AdminSidebar() {
           Dashboard
         </SideLink>
 
-        <SideLink to="/admin/analytics" icon={BarChart3}>
-          Analytics
-        </SideLink>
-
         {/* Management */}
         <div className="pt-2">
           <DropdownButton
-            icon={Settings}
-            label="Management"
+            icon={Package}
+            label="Sản phẩm"
             open={openManagement}
             onClick={() => setOpenManagement((v) => !v)}
           />
-
           {openManagement && (
             <div className="mt-1 space-y-1">
               <DropdownItem to="/admin/users" icon={Users}>
-                Users
+                Danh sách Sản Phẩm
               </DropdownItem>
               <DropdownItem to="/admin/products" icon={Package}>
-                Products
+                Tạo PC
               </DropdownItem>
               <DropdownItem to="/admin/orders" icon={ShoppingCart}>
-                Orders
+                Thêm Linh Kiện
               </DropdownItem>
             </div>
           )}
         </div>
 
-        {/* Pages */}
-        <NavLink
-          to="/admin/pages"
-          className={({ isActive }) =>
-            `
-            flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium
-            ${
-              isActive
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'text-slate-600 hover:bg-slate-100'
-            }
-            `
-          }
-        >
-          <FileText size={18} />
-          <span className="flex-1">Pages</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">
-            8
-          </span>
-        </NavLink>
+        <SideLink to="/admin/products" icon={Users}>
+          Người Dùng
+        </SideLink>
 
-        <SideLink to="/admin/calendar" icon={CalendarDays}>
-          Calendars
+        <SideLink to="/admin/orders" icon={ShoppingCart}>
+          Đơn Hàng
         </SideLink>
       </nav>
     </aside>
