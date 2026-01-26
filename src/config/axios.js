@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { toast } from 'sonner'
 
-const baseURL = import.meta.env.TechExpress_BACKEND_URL
+const baseURL = "https://localhost:7194/api"
+console.log('[API] Base URL:', baseURL)
 
 const instance = axios.create({
   baseURL,
@@ -32,6 +33,9 @@ instance.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type']
     }
+    config.metadata = {
+      startTime: performance.now()
+    }
 
     return config
   },
@@ -42,26 +46,47 @@ instance.interceptors.request.use(
    Response interceptor
 ========================= */
 instance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const endTime = performance.now()
+    const startTime = response.config.metadata?.startTime
+
+    const elapsedMs = startTime
+      ? Number((endTime - startTime).toFixed(2))
+      : null
+
+    const fullUrl = `${response.config.baseURL}${response.config.url}`
+
+    console.log(
+      `[API RESPONSE] ${response.config.method?.toUpperCase()} ${fullUrl} | ${elapsedMs} ms`
+    )
+
+    // GẮN elapsedMs vào response
+    response.elapsedMs = elapsedMs
+
+    return response
+  },
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+    const endTime = performance.now()
+    const startTime = error.config?.metadata?.startTime
 
-      if (window.location.pathname !== '/login') {
-        if (navigate) {
-          navigate('/login')
-        } else {
-          window.location.href = '/login'
-        }
+    const elapsedMs = startTime
+      ? Number((endTime - startTime).toFixed(2))
+      : null
 
-        toast.error('Session expired. Please log in again!')
-      }
+    const fullUrl = `${error.config?.baseURL}${error.config?.url}`
+
+    console.log(
+      `[API ERROR] ${error.config?.method?.toUpperCase()} ${fullUrl} | ${elapsedMs} ms`
+    )
+
+    if (error.response) {
+      error.response.elapsedMs = elapsedMs
     }
 
     return Promise.reject(error)
   }
 )
+
 
 instance.interceptors.request.use(
   (config) => {
@@ -118,22 +143,25 @@ export const apiService = {
   },
 
   async post(url, body) {
-    try {
-      const response = await instance.post(url, body)
-      return {
-        ...response.data,
-        status: response.status
-      }
-    } catch (error) {
-      return {
-        succeeded: false,
-        message:
-          error.response?.data?.message ||
-          error.message ||
-          'Unknown error',
-        status: error.response?.status || 500
-      }
+  try {
+    const response = await instance.post(url, body)
+
+    return {
+      ...response.data,
+      status: response.status,
+      elapsedMs: response.elapsedMs
     }
+  } catch (error) {
+    return {
+      succeeded: false,
+      message:
+        error.response?.data?.message ||
+        error.message ||
+        'Unknown error',
+      status: error.response?.status || 500,
+      elapsedMs: error.response?.elapsedMs
+    }
+  }
   },
 
   async put(url, body) {

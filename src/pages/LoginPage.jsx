@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '../store/authContext'
-// import apiService from '../../config/axios' // ⛔ BE: sẽ dùng khi tích hợp backend
+import apiService from '../config/axios'
 // import { GoogleLogin } from '@react-oauth/google' // ⛔ BE: login Google
 
 export default function LoginPage() {
@@ -10,14 +10,10 @@ export default function LoginPage() {
    * STATE
    * ======================= */
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: 'admin@techexpress.com',
+    password: 'Admin@12345'
   })
   const [loading, setLoading] = useState(false)
-
-  /* =======================
-   * ROUTER / AUTH
-   * ======================= */
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
@@ -42,41 +38,52 @@ export default function LoginPage() {
    * - response: { token, user }
    */
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (loading) return
+  e.preventDefault()
+  if (loading) return
 
-    setLoading(true)
+  setLoading(true)
 
-    try {
-      // ⛔ BE CALL (tạm thời mock)
-      /*
-      const response = await apiService.post('/auths/login', {
-        emailOrUsername: formData.email.trim(),
-        password: formData.password
-      })
+  try {
+    const response = await apiService.post('/auth/login', {
+      email: formData.email.trim(),
+      password: formData.password
+    })
 
-      if (response.data.succeeded && response.data.data.token) {
-        login(response.data.data.token)
-        toast.success('Đăng nhập thành công!')
-        navigate(from, { replace: true })
-      }
-      */
+    /**
+     * BE response:
+     * {
+     *   statusCode: 200,
+     *   value: { accessToken, refreshToken, email, role }
+     * }
+     */
+    const { statusCode, value } = response.data || {}
 
-      // ✅ MOCK tạm để test UI
-      if (formData.email && formData.password) {
-        login('FAKE_JWT_TOKEN')
-        toast.success('Đăng nhập thành công (mock)')
-        navigate(from, { replace: true })
-        return
-      }
-
+    if (statusCode !== 200 || !value?.accessToken) {
       toast.error('Email hoặc mật khẩu không đúng!')
-    } catch (error) {
-      toast.error('Đăng nhập thất bại. Vui lòng thử lại.')
-    } finally {
-      setLoading(false)
+      return
     }
+
+    const { accessToken, refreshToken } = value
+
+    // AuthContext chịu trách nhiệm validate + decode JWT
+    login(accessToken)
+
+    // Lưu refresh token cho bước sau
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken)
+    }
+
+    toast.success('Đăng nhập thành công!')
+    navigate(from, { replace: true })
+  } catch (error) {
+    toast.error(
+      error.response?.data?.message ||
+      'Đăng nhập thất bại. Vui lòng thử lại.'
+    )
+  } finally {
+    setLoading(false)
   }
+}
 
   /**
    * ⛔ BE: LOGIN GOOGLE

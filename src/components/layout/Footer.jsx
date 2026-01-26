@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 export default function Footer() {
   return (
     <footer className="bg-white border-t border-slate-200 mt-12">
@@ -21,26 +23,20 @@ export default function Footer() {
         />
       </div>
 
-      {/* ================= FOOTER CONTENT ================= */}
-      <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm text-slate-600">
-        {/* Giới thiệu */}
-        <div>
-          <h4 className="font-semibold text-slate-800 mb-3">GIỚI THIỆU</h4>
-          <ul className="space-y-2">
+      {/* ================= DESKTOP FOOTER ================= */}
+      <div className="hidden lg:block">
+        <div className="max-w-7xl mx-auto px-4 py-10 grid grid-cols-4 gap-8 text-sm text-slate-600">
+          {/* Giới thiệu */}
+          <FooterCol title="GIỚI THIỆU">
             <li>Giới thiệu TechExpress</li>
             <li>Hệ thống cửa hàng</li>
             <li>Điều khoản giao dịch</li>
             <li>Bảo mật thông tin</li>
             <li>Tuyển dụng</li>
-          </ul>
-        </div>
+          </FooterCol>
 
-        {/* Chính sách */}
-        <div>
-          <h4 className="font-semibold text-slate-800 mb-3">
-            CHÍNH SÁCH CÔNG TY
-          </h4>
-          <ul className="space-y-2">
+          {/* Chính sách */}
+          <FooterCol title="CHÍNH SÁCH CÔNG TY">
             <li>Chính sách giao nhận</li>
             <li className="text-[#0090D0] font-medium">
               Chính sách đổi trả hàng
@@ -49,66 +45,55 @@ export default function Footer() {
             <li>Hướng dẫn thanh toán</li>
             <li>Hướng dẫn trả góp</li>
             <li>Hướng dẫn kiểm tra hành trình đơn hàng</li>
-          </ul>
-        </div>
+          </FooterCol>
 
-        {/* Hỗ trợ khách hàng */}
-        <div>
-          <h4 className="font-semibold text-slate-800 mb-3">
-            HỖ TRỢ KHÁCH HÀNG
-          </h4>
-          <ul className="space-y-2">
-            <li>
-              Mua hàng: <strong>(028) 7301 3878</strong>
-            </li>
-            <li>
-              Bảo hành: <strong>(028) 7301 3879</strong>
-            </li>
-            <li>Cổng thông tin hỗ trợ khách hàng:</li>
+          {/* Hỗ trợ */}
+          <FooterCol title="HỖ TRỢ KHÁCH HÀNG">
+            <li>Mua hàng: <strong>(028) 7301 3878</strong></li>
+            <li>Bảo hành: <strong>(028) 7301 3879</strong></li>
+            <li>Cổng thông tin hỗ trợ khách hàng</li>
             <li className="text-[#0090D0]">hotro.sieutoc.com</li>
             <li>Gửi yêu cầu hỗ trợ kỹ thuật</li>
             <li>Tra cứu thông tin hóa đơn</li>
             <li>Phản ánh chất lượng dịch vụ</li>
-            <li className="pt-2">
-              <strong>P. Kinh doanh:</strong>
-            </li>
+            <li className="pt-2"><strong>P. Kinh doanh:</strong></li>
             <li>sales@techexpress.com</li>
-            <li>
-              <strong>Hợp tác thanh toán:</strong>
-            </li>
+            <li><strong>Hợp tác thanh toán:</strong></li>
             <li>payment@techexpress.com</li>
-          </ul>
+          </FooterCol>
+
+          {/* Showroom */}
+          <Showroom />
         </div>
+      </div>
 
-        {/* Showroom + công ty */}
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold text-slate-800 mb-2">
-              TP. HCM – Showroom
-            </h4>
-            <p>Địa chỉ: 22 Nguyễn Hoàng, P. Bình Trung, TP.HCM</p>
-            <p>Điện thoại: (028) 7301 3878</p>
-            <p>Mở cửa: 9h – 21h (T2 – CN)</p>
-          </div>
+      {/* ================= MOBILE FOOTER ================= */}
+      <div className="lg:hidden px-4 py-6 space-y-4 text-sm text-slate-600">
+        <Accordion title="GIỚI THIỆU">
+          <li>Giới thiệu TechExpress</li>
+          <li>Hệ thống cửa hàng</li>
+          <li>Điều khoản giao dịch</li>
+          <li>Bảo mật thông tin</li>
+          <li>Tuyển dụng</li>
+        </Accordion>
 
-          <div>
-            <h4 className="font-semibold text-slate-800 mb-2">
-              Hà Nội – Showroom
-            </h4>
-            <p>Địa chỉ: 60 Dịch Vọng Hậu, Q. Cầu Giấy, Hà Nội</p>
-            <p>Điện thoại: (028) 7301 3878</p>
-            <p>Mở cửa: 9h – 21h (T2 – CN)</p>
-          </div>
+        <Accordion title="CHÍNH SÁCH CÔNG TY">
+          <li>Chính sách giao nhận</li>
+          <li>Chính sách đổi trả hàng</li>
+          <li>Chính sách bảo hành</li>
+          <li>Hướng dẫn thanh toán</li>
+          <li>Hướng dẫn trả góp</li>
+        </Accordion>
 
-          <div>
-            <h4 className="font-semibold text-slate-800">
-              CÔNG TY TNHH TECH EXPRESS
-            </h4>
-            <p className="text-xs mt-1">
-              MST: 0311427563 – Cấp ngày 22/12/2011 tại Sở KH&ĐT TP.HCM
-            </p>
-          </div>
-        </div>
+        <Accordion title="HỖ TRỢ KHÁCH HÀNG">
+          <li>Mua hàng: <strong>(028) 7301 3878</strong></li>
+          <li>Bảo hành: <strong>(028) 7301 3879</strong></li>
+          <li>hotro.sieutoc.com</li>
+          <li>sales@techexpress.com</li>
+        </Accordion>
+
+        {/* Showroom - giữ nguyên */}
+        <Showroom />
       </div>
 
       {/* ================= COPYRIGHT ================= */}
@@ -120,6 +105,7 @@ export default function Footer() {
 }
 
 /* ================= SUB COMPONENT ================= */
+
 function CommitItem({ title, desc }) {
   return (
     <div className="flex items-start gap-3">
@@ -129,6 +115,66 @@ function CommitItem({ title, desc }) {
       <div>
         <div className="font-semibold text-slate-800">{title}</div>
         <div className="text-sm text-slate-500">{desc}</div>
+      </div>
+    </div>
+  )
+}
+
+function FooterCol({ title, children }) {
+  return (
+    <div>
+      <h4 className="font-semibold text-slate-800 mb-3">{title}</h4>
+      <ul className="space-y-2">{children}</ul>
+    </div>
+  )
+}
+
+function Accordion({ title, children }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="border-b pb-2 border-[#0090D0]">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between font-semibold text-slate-800"
+      >
+        {title}
+        <span className="text-lg">{open ? '−' : '+'}</span>
+      </button>
+
+      {open && <ul className="mt-2 space-y-2">{children}</ul>}
+    </div>
+  )
+}
+
+function Showroom() {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h4 className="font-semibold text-slate-800 mb-2">
+          TP. HCM – Showroom
+        </h4>
+        <p>22 Nguyễn Hoàng, P. Bình Trung, TP.HCM</p>
+        <p>Điện thoại: (028) 7301 3878</p>
+        <p>Mở cửa: 9h – 21h (T2 – CN)</p>
+      </div>
+
+      <div>
+        <h4 className="font-semibold text-slate-800 mb-2">
+          Hà Nội – Showroom
+        </h4>
+        <p>60 Dịch Vọng Hậu, Q. Cầu Giấy, Hà Nội</p>
+        <p>Điện thoại: (028) 7301 3878</p>
+        <p>Mở cửa: 9h – 21h (T2 – CN)</p>
+      </div>
+
+      <div>
+        <h4 className="font-semibold text-slate-800">
+          CÔNG TY TNHH TECH EXPRESS
+        </h4>
+        <p className="text-xs mt-1">
+          MST: Duoc cap boi 6 chang trai
+        </p>
       </div>
     </div>
   )

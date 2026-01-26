@@ -141,7 +141,7 @@ export default function RowActions({
 
             {showDelete && (
               <>
-                <li className="my-1 border-t border-slate-100" />
+                <li className="my-1 border-slate-100" />
                 <li>
                   <button
                     type="button"
