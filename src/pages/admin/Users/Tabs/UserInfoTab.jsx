@@ -79,7 +79,7 @@ export default function UserInfoTab({ user }) {
   if (!user) return null
 
   const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
-  const address = `${user.address || ''} ${user.ward || ''} ${user.province || ''}`.trim()
+  const address = `${user.address || ''}, ${user.ward || ''}, ${user.province || ''}`.trim()
 
   const getStatusColor = (status) => {
     const colors = {

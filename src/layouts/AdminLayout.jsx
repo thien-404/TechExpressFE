@@ -24,7 +24,7 @@ export default function AdminLayout() {
 
           {/* Page content */}
           <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-white">
-            <div className="mx-auto max-w-6xl">
+            <div className="mx-auto max-w-7xl">
               <Outlet />
             </div>
           </main>

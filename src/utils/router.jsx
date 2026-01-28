@@ -12,8 +12,10 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
 // Admin Pages
 import UserPage from "../pages/admin/Users/UserPage.jsx";
 import UserDetailPage from "../pages/admin/Users/UserDetailPage.jsx";
-//Customer Pages
+import UserUpdatePage from "../pages/admin/Users/UserUpdatePage.jsx";
 
+//Customer Pages
+import AccountPage from "../pages/customer/account/AccountPage.jsx";
 
 
 export const router = createBrowserRouter([
@@ -22,14 +24,16 @@ export const router = createBrowserRouter([
       { index: true, element: <h2>Home Page</h2>},
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
-      { path: "forgot-password", element: <ForgotPasswordPage /> }
+      { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> }
     ]
   },
   {
     path: "/admin", element: <ProtectedRoute requiredRole="Admin"><AdminLayout /></ProtectedRoute>, children: [
       { index: true, element: <h2>Admin Home Page</h2> },
       { path: "users", element: <UserPage />},
-      { path: "users/:userId", element: <UserDetailPage /> }
+      { path: "users/:userId", element: <UserDetailPage /> },
+      { path: "users/:userId/edit", element: <UserUpdatePage /> }
     ]
   }
 ]);

@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom'
 import { Search, User, ShoppingCart, Menu } from 'lucide-react'
+import { useAuth } from '../../store/authContext'
 
 export default function Header() {
+  const { user } = useAuth()
+
   return (
     <header className="w-full">
       {/* ================= MOBILE HEADER ================= */}
@@ -86,13 +89,13 @@ export default function Header() {
 
           {/* Account */}
           <NavLink
-            to="/login"
+            to={user ? '/account' : '/login'}
             className="flex items-center gap-1 text-white text-sm hover:underline"
           >
             <User size={18} />
             <div className="leading-tight">
               <div className="text-xs">Tài khoản</div>
-              <div className="font-medium">Đăng nhập</div>
+              <div className="font-medium">{user?.role || 'Đăng nhập'}</div>
             </div>
           </NavLink>
 

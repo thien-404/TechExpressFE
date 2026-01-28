@@ -8,48 +8,53 @@ import Pagination from '../../../components/common/Pagination'
 import RowActions from '../../../components/common/RowActions'
 import UserStatus from '../../../components/ui/icon/ActiveStatus.jsx'
 import SquareAvatar from '../../../components/ui/avatar/SquareAvatar.jsx'
+import Breadcrumb from '../../../components/ui/Breadcrumb.jsx'
 import { apiService } from '../../../config/axios'
 
-const formatPhone = (s) => (s ? s : '-')
 
-const Pill = ({ children }) => (
-  <span className="inline-flex items-center rounded bg-slate-100 px-2 py-1 text-[11px] text-[#334155]">
-    {children}
-  </span>
-)
+/* =========================
+ * BADGE
+ * ========================= */
+const Badge = ({ children, variant = 'default' }) => {
+  const variants = {
+    default: 'bg-slate-100 text-[#334155]',
+    admin: 'bg-purple-100 text-purple-700',
+    user: 'bg-blue-100 text-blue-700',
+    moderator: 'bg-indigo-100 text-indigo-700'
+  }
+  
+  return (
+    <span className={`inline-flex items-center rounded px-2 py-1 text-[11px] ${variants[variant] || variants.default}`}>
+      {children}
+    </span>
+  )
+}
 
+/* =========================
+ * MAIN PAGE
+ * ========================= */
 export default function UsersPage() {
   const navigate = useNavigate()
-
-  /* =========================
-   * STATE
-   * ========================= */
   const [query, setQuery] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-
-  // FE dùng 0-based
   const [pageNumber, setPageNumber] = useState(0)
   const [pageSize] = useState(10)
 
   /* =========================
-   * FETCH USERS
+   * FETCH DATA
    * ========================= */
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ['users', pageNumber, pageSize, searchTerm],
     queryFn: async () => {
       const res = await apiService.get('/user/pagination', {
-        pageNumber: pageNumber + 1, // FE → BE
+        pageNumber: pageNumber + 1,
         pageSize,
         search: searchTerm || ''
       })
 
       if (res?.statusCode !== 200) {
-        toast.error('Không tải được danh sách người dùng')
-        return {
-          items: [],
-          totalCount: 0,
-          totalPages: 1
-        }
+        toast.error('Không thể tải danh sách người dùng')
+        return { items: [], totalCount: 0, totalPages: 1 }
       }
 
       return res.value
@@ -63,18 +68,12 @@ export default function UsersPage() {
   const totalItems = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 1
 
-
   /* =========================
-   * SEARCH
+   * HANDLERS
    * ========================= */
   const handleSearch = () => {
     setPageNumber(0)
-    setSelected(new Set())
     setSearchTerm(query.trim())
-  }
-
-  const onSearchKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch()
   }
 
   const paddedRows = useMemo(() => {
@@ -83,26 +82,36 @@ export default function UsersPage() {
     return [...real, ...Array.from({ length: missing }, () => null)]
   }, [rows, pageSize])
 
+  const getRoleBadgeVariant = (role) => {
+    const map = {
+      admin: 'admin',
+      user: 'user',
+      staff: 'staff'
+    }
+    return map[role?.toLowerCase()] || 'default'
+  }
+
   /* =========================
    * RENDER
    * ========================= */
   return (
     <div className="font-[var(--font-inter)]">
       {/* Breadcrumb */}
-      <div className="text-xs text-slate-500">
-        Home <span className="mx-2">/</span> Người Dùng
-      </div>
+      <Breadcrumb items={[
+        { label: 'Trang chủ', href: '/admin' },
+        { label: 'Quản lý người dùng' }
+      ]} />
 
       {/* Header */}
       <div className="mt-3 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-[#334155]">Người Dùng</h1>
+        <h1 className="text-2xl font-semibold text-[#334155]">Quản lý người dùng</h1>
 
         <button
           type="button"
-          onClick={() => toast.info('Chưa làm Add User')}
-          className="h-9 rounded bg-[#6e846f] px-4 text-sm font-semibold text-white hover:opacity-90"
+          onClick={() => toast.info('Tính năng thêm người dùng đang phát triển')}
+          className="h-9 rounded bg-[#0A804A] px-4 text-sm font-semibold text-white hover:opacity-90"
         >
-          + Add
+          + Thêm Staff
         </button>
       </div>
 
@@ -115,14 +124,15 @@ export default function UsersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKeyDown}
-              placeholder="Search (backend)"
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Tìm kiếm theo tên, email, số điện thoại..."
               className="h-10 w-full rounded border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-slate-400"
             />
           </div>
 
           <button
             type="button"
+            onClick={() => toast.info('Bộ lọc nâng cao đang phát triển')}
             className="h-10 w-10 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
           >
             <FiSliders />
@@ -135,7 +145,7 @@ export default function UsersPage() {
             className="h-10 px-4 rounded border text-sm font-semibold text-[#334155] hover:bg-slate-50 disabled:opacity-50"
           >
             <FiSearch className="inline mr-1" />
-            Search
+            Tìm kiếm
           </button>
         </div>
 
@@ -144,65 +154,69 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
               <tr className="border-b border-slate-100">
-                <th className="px-4 py-3 text-left">Họ và tên</th>
+                <th className="px-4 py-3 text-left">Người dùng</th>
                 <th className="px-4 py-3 text-left">Vai trò</th>
-                <th className="px-4 py-3 text-left">SĐT</th>
-                <th className="px-4 py-3 text-left">Gmail</th>
+                <th className="px-4 py-3 text-left">Số điện thoại</th>
+                <th className="px-4 py-3 text-left">Email</th>
                 <th className="px-4 py-3 text-left">Trạng thái</th>
-                <th className="px-4 py-3 text-center">Hành động</th>
+                <th className="px-4 py-3 text-center">Thao tác</th>
               </tr>
             </thead>
 
             <tbody className="text-[#334155]">
-              {paddedRows.map((u, idx) => {
-                if (!u) {
+              {paddedRows.map((user, idx) => {
+                if (!user) {
                   return (
-                    <tr key={idx} className="bg-slate-100">
-                      <td colSpan={7} className="px-4 py-3">
+                    <tr key={`empty-${idx}`} className="bg-slate-100">
+                      <td colSpan={6} className="px-4 py-3">
                         <div className="h-5" />
                       </td>
                     </tr>
                   )
                 }
 
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+
                 return (
-                  <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <SquareAvatar
-                          name={`${u.firstName} ${u.lastName}`}
-                          seed={u.email}
+                          name={fullName}
+                          seed={user.email}
                           size="sm"
                         />
                         <div>
                           <div className="font-medium">
-                            {u.lastName} {u.firstName}
+                            {fullName || 'Chưa có tên'}
                           </div>
                           <div className="text-xs text-slate-500">
-                            {new Date(u.createdAt).toLocaleString()}
+                            {new Date(user.createdAt).toLocaleDateString('vi-VN')}
                           </div>
                         </div>
                       </div>
                     </td>
 
                     <td className="px-4 py-3">
-                      <Pill>{u.role}</Pill>
+                      <Badge variant={getRoleBadgeVariant(user.role)}>
+                        {user.role}
+                      </Badge>
                     </td>
 
-                    <td className="px-4 py-3">{formatPhone(u.phone)}</td>
-                    <td className="px-4 py-3">{u.email}</td>
+                    <td className="px-4 py-3">{user.phone || '-'}</td>
+                    <td className="px-4 py-3">{user.email}</td>
 
                     <td className="px-4 py-3">
-                      <UserStatus status={u.status} />
+                      <UserStatus status={user.status} />
                     </td>
 
                     <td className="px-4 py-3 text-center">
                       <RowActions
-                        status={u.status}
+                        status={user.status}
                         showStatusActions={false}
-                        onDetail={() => navigate(`/admin/users/${u.id}`)}
-                        onUpdate={() => navigate(`/admin/users/${u.id}/edit`)}
-                        onDelete={() => toast.error(`Delete: ${u.email}`)}
+                        onDetail={() => navigate(`/admin/users/${user.id}`)}
+                        onUpdate={() => navigate(`/admin/users/${user.id}/edit`)}
+                        onDelete={() => toast.error(`Xóa người dùng: ${user.email}`)}
                       />
                     </td>
                   </tr>
@@ -221,10 +235,7 @@ export default function UsersPage() {
           pageSize={pageSize}
           totalItems={totalItems}
           totalPages={totalPages}
-          onPageChange={(p) => {
-            setPageNumber(p)
-            setSelected(new Set())
-          }}
+          onPageChange={setPageNumber}
         />
       </div>
     </div>

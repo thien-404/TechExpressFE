@@ -130,7 +130,7 @@ function PageBtn({ p, active, disabled, onClick }) {
       className={[
         'h-9 w-10 text-sm border-r border-slate-200 last:border-r-0',
         active
-          ? 'bg-[#6e846f] text-white font-semibold'
+          ? 'bg-[#0A804A] text-white font-semibold'
           : 'bg-white text-[#334155] hover:bg-slate-50',
         disabled ? 'opacity-60 cursor-not-allowed' : ''
       ].join(' ')}

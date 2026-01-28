@@ -73,7 +73,7 @@ export default function RowActions({
                   className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
                 >
                   <FiEye />
-                  Detail
+                  Chi tiết
                 </button>
               </li>
             )}
@@ -89,7 +89,7 @@ export default function RowActions({
                   className="flex w-full items-center gap-2 px-3 py-2 hover:bg-slate-50"
                 >
                   <FiEdit2 />
-                  Update
+                  Cập nhật
                 </button>
               </li>
             )}
@@ -133,7 +133,7 @@ export default function RowActions({
                     title={isInactive ? 'User đang Disabled' : 'Disable user'}
                   >
                     <FiXCircle />
-                    Disable
+                    Xóa
                   </button>
                 </li>
               </>
