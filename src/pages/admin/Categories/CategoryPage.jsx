@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import instance from '../../../config/axios';
-import { Plus, Pencil, Trash2, Search, ChartBarStacked, Upload, X, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChartBarStacked, Upload, X, ChevronRight, ChevronDown, Filter } from 'lucide-react';
 import { storage } from '../../../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Pagination from '../../../components/common/Pagination';
@@ -11,10 +11,15 @@ function CategoryPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
-    const [formData, setFormData] = useState({ name: '', parentCategoryId: null, description: '', imageUrl: '' });
+    const [formData, setFormData] = useState({ name: '', parentCategoryId: null, description: '', imageUrl: '', status: true });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [uploading, setUploading] = useState(false);
+
+    // Filter states
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterParentCategory, setFilterParentCategory] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
 
     // Pagination states
     const [pageNumber, setPageNumber] = useState(0); // 0-based for pagination component
@@ -34,7 +39,15 @@ function CategoryPage() {
             };
 
             if (searchTerm) {
-                params.searchTerm = searchTerm;
+                params.name = searchTerm;
+            }
+
+            if (filterParentCategory) {
+                params.parentCategoryId = filterParentCategory;
+            }
+
+            if (filterStatus !== '') {
+                params.status = filterStatus === 'true';
             }
 
             const response = await instance.get('/Category', { params });
@@ -51,7 +64,7 @@ function CategoryPage() {
         } finally {
             setLoading(false);
         }
-    }, [pageNumber, pageSize, searchTerm]);
+    }, [pageNumber, pageSize, searchTerm, filterParentCategory, filterStatus]);
 
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
@@ -67,7 +80,7 @@ function CategoryPage() {
 
     const handleAddCategory = () => {
         setEditingCategory(null);
-        setFormData({ name: '', parentCategoryId: null, description: '', imageUrl: '' });
+        setFormData({ name: '', parentCategoryId: null, description: '', imageUrl: '', status: true });
         setImageFile(null);
         setImagePreview('');
         setShowModal(true);
@@ -75,7 +88,13 @@ function CategoryPage() {
 
     const handleEditCategory = (category) => {
         setEditingCategory(category);
-        setFormData({ name: category.name, parentCategoryId: category.parentCategoryId, description: category.description, imageUrl: category.imageUrl || '' });
+        setFormData({
+            name: category.name,
+            parentCategoryId: category.parentCategoryId,
+            description: category.description,
+            imageUrl: category.imageUrl || '',
+            status: category.status ?? true
+        });
         setImageFile(null);
         setImagePreview(category.imageUrl || '');
         setShowModal(true);
@@ -161,6 +180,15 @@ function CategoryPage() {
         setPageNumber(0); // Reset to first page when searching
     };
 
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setFilterParentCategory('');
+        setFilterStatus('');
+        setPageNumber(0);
+    };
+
+    const hasActiveFilters = searchTerm || filterParentCategory || filterStatus !== '';
+
     // Organize categories into hierarchical structure
     const organizedCategories = useMemo(() => {
         const categoryMap = new Map();
@@ -239,43 +267,125 @@ function CategoryPage() {
                 <p className="text-slate-600">Quản lý các danh mục sản phẩm của cửa hàng</p>
             </div>
 
-            {/* Search & Add Button */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Tìm kiếm danh mục..."
-                        value={searchTerm}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+            {/* Search & Filters */}
+            <div className="space-y-3 mb-6">
+                {/* Top row: Search and Actions */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="Tìm kiếm theo tên danh mục..."
+                            value={searchTerm}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`flex items-center gap-2 px-3 py-2.5 border rounded-lg transition text-sm font-medium ${
+                                showFilters || hasActiveFilters
+                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                                    : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                            }`}
+                            title="Bộ lọc"
+                        >
+                            <Filter size={16} />
+                            Lọc
+                            {hasActiveFilters && (
+                                <span className="bg-emerald-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {[filterParentCategory, filterStatus !== ''].filter(Boolean).length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={expandAll}
+                            className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                            title="Mở rộng tất cả"
+                        >
+                            <ChevronDown size={16} />
+                            Mở rộng
+                        </button>
+                        <button
+                            onClick={collapseAll}
+                            className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                            title="Thu gọn tất cả"
+                        >
+                            <ChevronRight size={16} />
+                            Thu gọn
+                        </button>
+                        <button
+                            onClick={handleAddCategory}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
+                        >
+                            <Plus size={18} />
+                            Thêm danh mục
+                        </button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={expandAll}
-                        className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
-                        title="Mở rộng tất cả"
-                    >
-                        <ChevronDown size={16} />
-                        Mở rộng
-                    </button>
-                    <button
-                        onClick={collapseAll}
-                        className="flex items-center gap-2 px-3 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
-                        title="Thu gọn tất cả"
-                    >
-                        <ChevronRight size={16} />
-                        Thu gọn
-                    </button>
-                    <button
-                        onClick={handleAddCategory}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium"
-                    >
-                        <Plus size={18} />
-                        Thêm danh mục
-                    </button>
-                </div>
+
+                {/* Filter Panel */}
+                {showFilters && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Parent Category Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Danh mục cha
+                                </label>
+                                <select
+                                    value={filterParentCategory}
+                                    onChange={(e) => {
+                                        setFilterParentCategory(e.target.value);
+                                        setPageNumber(0);
+                                    }}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                                >
+                                    <option value="">Tất cả</option>
+                                    {categories
+                                        .filter(cat => !cat.parentCategoryId)
+                                        .map(category => (
+                                            <option key={category.id} value={category.id}>
+                                                {category.name}
+                                            </option>
+                                        ))
+                                    }
+                                </select>
+                            </div>
+
+                            {/* Status Filter */}
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">
+                                    Trạng thái
+                                </label>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => {
+                                        setFilterStatus(e.target.value);
+                                        setPageNumber(0);
+                                    }}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white"
+                                >
+                                    <option value="">Tất cả</option>
+                                    <option value="true">Đang hoạt động</option>
+                                    <option value="false">Đã xoá</option>
+                                </select>
+                            </div>
+
+                            {/* Clear Filters Button */}
+                            <div className="flex items-end">
+                                <button
+                                    onClick={handleClearFilters}
+                                    disabled={!hasActiveFilters}
+                                    className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-white transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Xóa bộ lọc
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Categories Table */}
@@ -297,6 +407,9 @@ function CategoryPage() {
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Mô tả
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Trạng thái
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                                         Thao tác
@@ -351,6 +464,17 @@ function CategoryPage() {
                                             <div className="text-slate-600 text-sm">
                                                 {category.description || 'Không có mô tả'}
                                             </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {category.isDeleted ? (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-slate-800">
+                                                    Đã xoá
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-emerald-800">
+                                                    Đang hoạt động
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-end gap-2">
@@ -442,6 +566,19 @@ function CategoryPage() {
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                                     placeholder="Nhập mô tả (tùy chọn)"
                                 />
+                            </div>
+                            <div className='mb-4'>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.status}
+                                        onChange={(e) => setFormData({ ...formData, status: e.target.checked })}
+                                        className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                                    />
+                                    <span className="text-sm font-medium text-slate-700">
+                                        Kích hoạt danh mục
+                                    </span>
+                                </label>
                             </div>
                             <div className='mb-6'>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
