@@ -7,7 +7,8 @@ import {
   ShoppingCart,
   ChevronDown,
   ChevronRight,
-  X
+  X,
+  ChartBarStacked
 } from 'lucide-react'
 
 /* =========================
@@ -115,7 +116,10 @@ export default function AdminSideBar({ open, onClose }) {
           <SideLink to="/admin" icon={LayoutDashboard} end onClick={onClose}>
             Dashboard
           </SideLink>
-
+          
+          <div>
+            <SideLink to="/admin/categories" icon={ChartBarStacked} onClick={onClose}>Danh mục sản phẩm</SideLink>
+          </div>
           {/* Management */}
           <div className="pt-2">
             <DropdownButton
