@@ -12,6 +12,7 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
 // Admin Pages
 import UserPage from "../pages/admin/Users/UserPage.jsx";
 import UserDetailPage from "../pages/admin/Users/UserDetailPage.jsx";
+import CategoryPage from "../pages/admin/Categories/CategoryPage.jsx";
 import UserUpdatePage from "../pages/admin/Users/UserUpdatePage.jsx";
 
 //Customer Pages
@@ -33,7 +34,8 @@ export const router = createBrowserRouter([
       { index: true, element: <h2>Admin Home Page</h2> },
       { path: "users", element: <UserPage />},
       { path: "users/:userId", element: <UserDetailPage /> },
-      { path: "users/:userId/edit", element: <UserUpdatePage /> }
+      { path: "users/:userId/edit", element: <UserUpdatePage /> },
+      { path: "categories", element: <CategoryPage /> },
     ]
   }
 ]);
