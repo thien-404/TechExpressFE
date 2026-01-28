@@ -11,7 +11,7 @@ function CategoryPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
-    const [formData, setFormData] = useState({ name: '', parentCategoryId: null, description: '', imageUrl: '', status: true });
+    const [formData, setFormData] = useState({ name: '', parentCategoryId: null, description: '', imageUrl: '' });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -80,7 +80,7 @@ function CategoryPage() {
 
     const handleAddCategory = () => {
         setEditingCategory(null);
-        setFormData({ name: '', parentCategoryId: null, description: '', imageUrl: '', status: true });
+        setFormData({ name: '', parentCategoryId: null, description: '', imageUrl: ''});
         setImageFile(null);
         setImagePreview('');
         setShowModal(true);
@@ -92,8 +92,7 @@ function CategoryPage() {
             name: category.name,
             parentCategoryId: category.parentCategoryId,
             description: category.description,
-            imageUrl: category.imageUrl || '',
-            status: category.status ?? true
+            imageUrl: category.imageUrl || ''
         });
         setImageFile(null);
         setImagePreview(category.imageUrl || '');
@@ -566,19 +565,6 @@ function CategoryPage() {
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                                     placeholder="Nhập mô tả (tùy chọn)"
                                 />
-                            </div>
-                            <div className='mb-4'>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.checked })}
-                                        className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-                                    />
-                                    <span className="text-sm font-medium text-slate-700">
-                                        Kích hoạt danh mục
-                                    </span>
-                                </label>
                             </div>
                             <div className='mb-6'>
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
