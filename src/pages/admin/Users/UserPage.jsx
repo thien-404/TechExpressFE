@@ -183,7 +183,7 @@ export default function UsersPage() {
                       <div className="flex items-center gap-3">
                         <SquareAvatar
                           name={fullName}
-                          seed={user.email}
+                          seed={user.avatarImage}
                           size="sm"
                         />
                         <div>

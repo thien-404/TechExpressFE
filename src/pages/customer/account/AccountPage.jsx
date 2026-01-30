@@ -14,6 +14,7 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState("profile");
 
   const [form, setForm] = useState({
+    id: "",
     firstName: "",
     lastName: "",
     email: "",
@@ -46,6 +47,7 @@ export default function AccountPage() {
     useEffect(() => {
       if (!user) return;
       setForm({
+        id: user.id ?? "",
         firstName: user.firstName ?? "",
         lastName: user.lastName ?? "",
         email: user.email ?? "",
@@ -74,7 +76,7 @@ export default function AccountPage() {
         avatarImage: form.avatarImage
       };
       console.log("Updating user with payload:", payload);
-      const res = await apiService.put("/user", payload);
+      const res = await apiService.put("/user/me", payload);
       if (res?.statusCode !== 200) {
         throw new Error(res?.message || "Cập nhật thất bại");
       }
