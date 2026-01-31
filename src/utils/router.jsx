@@ -17,6 +17,7 @@ import UserUpdatePage from "../pages/admin/Users/UserUpdatePage.jsx";
 
 //Customer Pages
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
+import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 
 
 export const router = createBrowserRouter([
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "users/:userId", element: <UserDetailPage /> },
       { path: "users/:userId/edit", element: <UserUpdatePage /> },
       { path: "categories", element: <CategoryPage /> },
+      { path: "categories/:categoryId", element: <CategoryDetailsPage/>}
     ]
   }
 ]);
