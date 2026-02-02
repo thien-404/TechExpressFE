@@ -224,8 +224,8 @@ export default function UserInfoTab({ user }) {
               value={user.identity || '-'}
             />
             <InfoRow
-              label="Trạng thái tài khoản"
-              value={user.status}
+              label="Lương"
+              value={user.salary ? `${user.salary.toLocaleString('vi-VN')} ₫` : '-'}
             />
           </div>
         </Box>

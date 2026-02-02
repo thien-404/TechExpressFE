@@ -1,24 +1,24 @@
-import React, { useState } from 'react'
+import React, { useState } from "react";
 import {
   FiUpload,
   FiTrash2,
   FiUser,
   FiMail,
   FiPhone,
-  FiMapPin
-} from 'react-icons/fi'
-import { toast } from 'sonner'
-import SquareAvatar from '../ui/avatar/SquareAvatar'
-import { uploadUserAvatar, deleteUserAvatar } from '../../utils/uploadImage'
+  FiMapPin,
+} from "react-icons/fi";
+import { toast } from "sonner";
+import SquareAvatar from "../ui/avatar/SquareAvatar";
+import { uploadUserAvatar, deleteUserAvatar } from "../../utils/uploadImage";
 
 /* =========================
  * STYLES
  * ========================= */
 const inputClass =
-  'h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all'
+  "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all";
 
-const labelClass = 'mb-1.5 block text-xs font-semibold text-slate-600'
-const sectionClass = 'rounded-lg border border-slate-200 bg-white'
+const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600";
+const sectionClass = "rounded-lg border border-slate-200 bg-white";
 
 /* =========================
  * SECTION
@@ -31,7 +31,7 @@ const Section = ({ title, icon: Icon, children }) => (
     </div>
     <div className="p-6">{children}</div>
   </div>
-)
+);
 
 /* =========================
  * MAIN FORM
@@ -40,53 +40,63 @@ export default function UserForm({
   form,
   onChange,
   onSubmit,
-  loading = false
+  loading = false,
 }) {
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState(false);
 
   const setField = (key) => (e) => {
-    onChange(key, e.target.value)
-  }
+    onChange(key, e.target.value);
+  };
 
-  const fullName = `${form.firstName || ''} ${form.lastName || ''}`.trim()
+  const fullName = `${form.firstName || ""} ${form.lastName || ""}`.trim();
 
   /* =========================
    * AVATAR HANDLERS
    * ========================= */
   const onSelectAvatar = async (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Chỉ cho phép upload ảnh')
-      return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Chỉ cho phép upload ảnh");
+      return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ảnh tối đa 5MB')
-      return
+      toast.error("Ảnh tối đa 5MB");
+      return;
     }
 
     try {
-      setUploading(true)
-      const url = await uploadUserAvatar({ file, userId: form.id })
-      onChange('avatarImage', url)
-      toast.success('Upload ảnh thành công')
+      setUploading(true);
+      const url = await uploadUserAvatar({ file, userId: form.id });
+      onChange("avatarImage", url);
+      toast.success("Upload ảnh thành công");
     } catch (err) {
-      toast.error(err?.message || 'Upload ảnh thất bại')
+      toast.error(err?.message || "Upload ảnh thất bại");
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
-  const onRemoveAvatar = () => {
-    deleteUserAvatar(form.id)
-    onChange('avatarImage', '')
-    toast.success('Đã xoá ảnh đại diện')
-  }
+  // const onRemoveAvatar = async () => {
+  //   try {
+  //     setUploading(true);
+  //     await deleteUserAvatar(form.id);
+  //     onChange("avatarImage", null);
+  //     toast.success("Đã xoá ảnh đại diện");
+  //   } catch (err) {
+  //     toast.error(err?.message || "Xoá ảnh thất bại");
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
   return (
-    <form onSubmit={onSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <form
+      onSubmit={onSubmit}
+      className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+    >
       {/* ================= LEFT ================= */}
       <div className="lg:col-span-3 space-y-6">
         <Section title="Ảnh đại diện" icon={FiUser}>
@@ -102,7 +112,7 @@ export default function UserForm({
             <div className="space-y-2">
               <label className="w-full h-9 rounded border border-slate-300 text-sm font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 cursor-pointer">
                 <FiUpload size={14} />
-                {uploading ? 'Đang upload...' : 'Chọn ảnh'}
+                {uploading ? "Đang upload..." : "Chọn ảnh"}
                 <input
                   type="file"
                   hidden
@@ -112,7 +122,7 @@ export default function UserForm({
                 />
               </label>
 
-              {form.avatarImage && (
+              {/* {form.avatarImage && (
                 <button
                   type="button"
                   onClick={onRemoveAvatar}
@@ -121,7 +131,7 @@ export default function UserForm({
                   <FiTrash2 size={14} />
                   Xóa ảnh
                 </button>
-              )}
+              )} */}
 
               <div className="text-[11px] text-slate-500 text-center">
                 JPG, PNG · Tối đa 5MB
@@ -140,7 +150,7 @@ export default function UserForm({
               <label className={labelClass}>Họ và tên đệm</label>
               <input
                 value={form.firstName}
-                onChange={setField('firstName')}
+                onChange={setField("firstName")}
                 className={inputClass}
               />
             </div>
@@ -149,7 +159,7 @@ export default function UserForm({
               <label className={labelClass}>Tên</label>
               <input
                 value={form.lastName}
-                onChange={setField('lastName')}
+                onChange={setField("lastName")}
                 className={inputClass}
               />
             </div>
@@ -174,8 +184,8 @@ export default function UserForm({
             <div>
               <label className={labelClass}>Giới tính</label>
               <select
-                value={form.gender ?? ''}
-                onChange={setField('gender')}
+                value={form.gender ?? ""}
+                onChange={setField("gender")}
                 className={inputClass}
               >
                 <option value="">Chọn giới tính</option>
@@ -199,7 +209,7 @@ export default function UserForm({
                 />
                 <input
                   value={form.phone}
-                  onChange={setField('phone')}
+                  onChange={setField("phone")}
                   className={`${inputClass} pl-10`}
                 />
               </div>
@@ -209,7 +219,7 @@ export default function UserForm({
               <label className={labelClass}>Mã bưu điện</label>
               <input
                 value={form.postalCode}
-                onChange={setField('postalCode')}
+                onChange={setField("postalCode")}
                 className={inputClass}
               />
             </div>
@@ -223,7 +233,7 @@ export default function UserForm({
               <label className={labelClass}>Tỉnh / Thành phố</label>
               <input
                 value={form.province}
-                onChange={setField('province')}
+                onChange={setField("province")}
                 className={inputClass}
               />
             </div>
@@ -232,7 +242,7 @@ export default function UserForm({
               <label className={labelClass}>Quận / Huyện</label>
               <input
                 value={form.ward}
-                onChange={setField('ward')}
+                onChange={setField("ward")}
                 className={inputClass}
               />
             </div>
@@ -241,7 +251,7 @@ export default function UserForm({
               <label className={labelClass}>Địa chỉ chi tiết</label>
               <input
                 value={form.address}
-                onChange={setField('address')}
+                onChange={setField("address")}
                 className={inputClass}
               />
             </div>
@@ -268,11 +278,11 @@ export default function UserForm({
               disabled={loading || uploading}
               className="h-10 rounded bg-[#38976C] px-6 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
             >
-              {loading || uploading ? 'Đang lưu...' : 'Lưu thay đổi'}
+              {loading || uploading ? "Đang lưu..." : "Lưu thay đổi"}
             </button>
           </div>
         </div>
       </div>
     </form>
-  )
+  );
 }

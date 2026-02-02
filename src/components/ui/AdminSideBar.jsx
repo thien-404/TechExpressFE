@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  PcCase,
   ChartBarStacked
 } from 'lucide-react'
 
@@ -133,7 +134,7 @@ export default function AdminSideBar({ open, onClose }) {
                 <DropdownItem to="/admin/products" icon={Package} onClick={onClose}>
                   Danh sách Sản Phẩm
                 </DropdownItem>
-                <DropdownItem to="/admin/products" icon={Package} onClick={onClose}>
+                <DropdownItem to="/admin/create" icon={PcCase} onClick={onClose}>
                   Tạo PC
                 </DropdownItem>
                 <DropdownItem to="/admin/orders" icon={ShoppingCart} onClick={onClose}>

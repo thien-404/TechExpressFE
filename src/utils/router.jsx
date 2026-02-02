@@ -14,6 +14,11 @@ import UserPage from "../pages/admin/Users/UserPage.jsx";
 import UserDetailPage from "../pages/admin/Users/UserDetailPage.jsx";
 import CategoryPage from "../pages/admin/Categories/CategoryPage.jsx";
 import UserUpdatePage from "../pages/admin/Users/UserUpdatePage.jsx";
+import StaffCreatePage from "../pages/admin/Users/StaffCreatePage.jsx";
+import ProductPage from "../pages/admin/Product/ProductPage.jsx";
+import ProductDetailPage from "../pages/admin/Product/ProductDetailPage.jsx";
+import ProductCreatePage from "../pages/admin/Product/ProductCreatePage.jsx";
+import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 
 //Customer Pages
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
@@ -32,10 +37,20 @@ export const router = createBrowserRouter([
   {
     path: "/admin", element: <ProtectedRoute requiredRole="Admin"><AdminLayout /></ProtectedRoute>, children: [
       { index: true, element: <h2>Admin Home Page</h2> },
+      // User Management
       { path: "users", element: <UserPage />},
       { path: "users/:userId", element: <UserDetailPage /> },
       { path: "users/:userId/edit", element: <UserUpdatePage /> },
+      { path: "staff/create", element: <StaffCreatePage /> },
+
+      // Category Management
       { path: "categories", element: <CategoryPage /> },
+
+      // Product Management
+      { path: "products", element: <ProductPage /> },
+      { path: "products/create", element: <ProductCreatePage /> },
+      { path: "products/:productId", element: <ProductDetailPage /> },
+      { path: "products/:productId/edit", element: <ProductUpdatePage /> },
     ]
   }
 ]);

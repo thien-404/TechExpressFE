@@ -207,7 +207,7 @@ export default function AdminTopbar({ onOpenSidebar }) {
       </div>
 
       {/* Fade-in animation */}
-      <style jsx>{`
+      <style>{`
         @keyframes fadeIn {
           from {
             opacity: 0;
