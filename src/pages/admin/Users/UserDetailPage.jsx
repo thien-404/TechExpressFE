@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react"
-import { useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { FiArrowLeft } from "react-icons/fi"
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { FiArrowLeft } from "react-icons/fi";
+// import { queryClient } from "../../../config/queryClient.jsx";
 
-import { apiService } from "../../../config/axios"
-import UserInfoTab from "./Tabs/UserInfoTab.jsx"
-import Breadcrumb from "../../../components/ui/Breadcrumb.jsx"
+import { apiService } from "../../../config/axios";
+import UserInfoTab from "./Tabs/UserInfoTab.jsx";
+import Breadcrumb from "../../../components/ui/Breadcrumb.jsx";
 
 /* =========================
  * TABS COMPONENT
@@ -18,14 +19,14 @@ const Tabs = ({ active, onChange }) => {
       { key: "orders", label: "Đơn hàng" },
       { key: "configs", label: "Cấu hình" },
     ],
-    []
-  )
+    [],
+  );
 
   return (
     <div className="border-b border-slate-200">
       <div className="flex gap-6 px-6">
         {items.map((tab) => {
-          const isActive = active === tab.key
+          const isActive = active === tab.key;
           return (
             <button
               key={tab.key}
@@ -42,32 +43,32 @@ const Tabs = ({ active, onChange }) => {
                 <span className="absolute left-0 right-0 bottom-0 h-[2px] bg-[#22c55e]" />
               )}
             </button>
-          )
+          );
         })}
       </div>
     </div>
-  )
-}
+  );
+};
 
 /* =========================
  * MAIN PAGE
  * ========================= */
 export default function UserDetailPage() {
-  const { userId } = useParams()
-  const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const { userId } = useParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const tabFromUrl = searchParams.get("tab") || "info"
-  const [activeTab, setActiveTab] = useState(tabFromUrl)
+  const tabFromUrl = searchParams.get("tab") || "info";
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   useEffect(() => {
-    setActiveTab(tabFromUrl)
-  }, [tabFromUrl])
+    setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
   const changeTab = (nextTab) => {
-    setActiveTab(nextTab)
-    setSearchParams({ tab: nextTab })
-  }
+    setActiveTab(nextTab);
+    setSearchParams({ tab: nextTab });
+  };
 
   /* =========================
    * FETCH USER DATA
@@ -76,14 +77,44 @@ export default function UserDetailPage() {
     enabled: !!userId,
     queryKey: ["user-detail", userId],
     queryFn: async () => {
-      const res = await apiService.get(`/user/${userId}`)
+      const res = await apiService.get(`/user/${userId}`);
       if (res?.statusCode !== 200) {
-        toast.error(res?.message || "Không thể tải thông tin người dùng")
-        return null
+        toast.error(res?.message || "Không thể tải thông tin người dùng");
+        return null;
       }
-      return res.value
+      return res.value;
     },
-  })
+  });
+
+  /* =========================
+   * DELETE USER
+   * ========================= */
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiService.delete(`/user/${userId}`);
+      if (res?.statusCode !== 200) {
+        throw new Error(res?.message || "Xóa người dùng thất bại");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Đã xóa người dùng");
+      // queryClient.invalidateQueries({ queryKey: ["users"] }); // list page
+      navigate("/admin/users");
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Xóa người dùng thất bại");
+    },
+  });
+
+  const onDeleteUser = () => {
+    const ok = window.confirm(
+      `Bạn có chắc chắn muốn xóa người dùng "${fullName || user.email}"?\nHành động này không thể hoàn tác.`,
+    );
+    if (!ok) return;
+
+    deleteMutation.mutate();
+  };
 
   /* =========================
    * LOADING STATE
@@ -93,12 +124,12 @@ export default function UserDetailPage() {
       <div className="flex items-center justify-center p-12">
         <div className="text-sm text-slate-500">Đang tải thông tin...</div>
       </div>
-    )
+    );
   }
 
-  if (!user) return null
+  if (!user) return null;
 
-  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim()
+  const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
 
   /* =========================
    * RENDER
@@ -117,7 +148,8 @@ export default function UserDetailPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={onDeleteUser}
+            disabled={deleteMutation.isPending}
             className="inline-flex items-center gap-2 rounded bg-[#f00303] px-4 py-2.5 text-xs font-semibold text-white hover:opacity-90"
           >
             Xóa
@@ -166,5 +198,5 @@ export default function UserDetailPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

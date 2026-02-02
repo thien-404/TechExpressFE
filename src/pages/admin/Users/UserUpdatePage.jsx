@@ -18,6 +18,7 @@ export default function UserUpdatePage() {
   const navigate = useNavigate()
 
   const [form, setForm] = useState({
+    id: userId,
     firstName: "",
     lastName: "",
     phone: "",
@@ -54,6 +55,7 @@ export default function UserUpdatePage() {
   useEffect(() => {
     if (!user) return
     setForm({
+      id: user.id ?? userId,
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
       phone: user.phone ?? "",
@@ -83,7 +85,7 @@ export default function UserUpdatePage() {
         postalCode: form.postalCode,
         avatarImage: form.avatarImage,
       }
-
+      console.log("Updating user with payload:", payload)
       const res = await apiService.put(`/user/${userId}`, payload)
       if (res?.statusCode !== 200) {
         throw new Error(res?.message || "Cập nhật thất bại")

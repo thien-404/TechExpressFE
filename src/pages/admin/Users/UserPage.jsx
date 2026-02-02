@@ -1,95 +1,126 @@
-import React, { useMemo, useState } from 'react'
-import { toast } from 'sonner'
-import { FiSearch, FiSliders } from 'react-icons/fi'
-import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import React, { useMemo, useState } from "react";
+import { toast } from "sonner";
+import { FiSearch, FiSliders } from "react-icons/fi";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+// import { queryClient } from "../../../config/queryClient.jsx";
 
-import Pagination from '../../../components/common/Pagination'
-import RowActions from '../../../components/common/RowActions'
-import UserStatus from '../../../components/ui/icon/ActiveStatus.jsx'
-import SquareAvatar from '../../../components/ui/avatar/SquareAvatar.jsx'
-import Breadcrumb from '../../../components/ui/Breadcrumb.jsx'
-import { apiService } from '../../../config/axios'
-
+import Pagination from "../../../components/common/Pagination";
+import RowActions from "../../../components/common/RowActions";
+import UserStatus from "../../../components/ui/icon/ActiveStatus.jsx";
+import SquareAvatar from "../../../components/ui/avatar/SquareAvatar.jsx";
+import Breadcrumb from "../../../components/ui/Breadcrumb.jsx";
+import { apiService } from "../../../config/axios";
 
 /* =========================
  * BADGE
  * ========================= */
-const Badge = ({ children, variant = 'default' }) => {
+const Badge = ({ children, variant = "default" }) => {
   const variants = {
-    default: 'bg-slate-100 text-[#334155]',
-    admin: 'bg-purple-100 text-purple-700',
-    user: 'bg-blue-100 text-blue-700',
-    moderator: 'bg-indigo-100 text-indigo-700'
-  }
-  
+    default: "bg-slate-100 text-[#334155]",
+    admin: "bg-purple-100 text-purple-700",
+    user: "bg-blue-100 text-blue-700",
+    moderator: "bg-indigo-100 text-indigo-700",
+  };
+
   return (
-    <span className={`inline-flex items-center rounded px-2 py-1 text-[11px] ${variants[variant] || variants.default}`}>
+    <span
+      className={`inline-flex items-center rounded px-2 py-1 text-[11px] ${variants[variant] || variants.default}`}
+    >
       {children}
     </span>
-  )
-}
+  );
+};
 
 /* =========================
  * MAIN PAGE
  * ========================= */
 export default function UsersPage() {
-  const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [pageNumber, setPageNumber] = useState(0)
-  const [pageSize] = useState(10)
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [pageNumber, setPageNumber] = useState(0);
+  const [pageSize] = useState(10);
 
   /* =========================
    * FETCH DATA
    * ========================= */
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['users', pageNumber, pageSize, searchTerm],
+    queryKey: ["users", pageNumber, pageSize, searchTerm],
     queryFn: async () => {
-      const res = await apiService.get('/user/pagination', {
+      const res = await apiService.get("/user/pagination", {
         pageNumber: pageNumber + 1,
         pageSize,
-        search: searchTerm || ''
-      })
+        search: searchTerm || "",
+      });
 
       if (res?.statusCode !== 200) {
-        toast.error('Không thể tải danh sách người dùng')
-        return { items: [], totalCount: 0, totalPages: 1 }
+        toast.error("Không thể tải danh sách người dùng");
+        return { items: [], totalCount: 0, totalPages: 1 };
       }
 
-      return res.value
+      return res.value;
     },
     keepPreviousData: true,
-    staleTime: 30_000
-  })
+    staleTime: 30_000,
+  });
 
-  const loading = isLoading || isFetching
-  const rows = data?.items ?? []
-  const totalItems = data?.totalCount ?? 0
-  const totalPages = data?.totalPages ?? 1
+  const loading = isLoading || isFetching;
+  const rows = data?.items ?? [];
+  const totalItems = data?.totalCount ?? 0;
+  const totalPages = data?.totalPages ?? 1;
+
+  /* =========================
+   * DELETE USER
+   * ========================= */
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await apiService.delete(`/user/${id}`);
+      if (res?.statusCode !== 200) {
+        throw new Error(res?.message || "Xóa người dùng thất bại");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Đã xóa người dùng");
+      // queryClient.invalidateQueries({ queryKey: ["users"] }); // list page
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Xóa người dùng thất bại");
+    },
+  });
+
+  const onDeleteUser = (id) => {
+    const ok = window.confirm(
+      `Bạn có chắc chắn muốn xóa người dùng ""?\nHành động này không thể hoàn tác.`,
+    );
+    if (!ok) return;
+
+    deleteMutation.mutate(id);
+  };
 
   /* =========================
    * HANDLERS
    * ========================= */
   const handleSearch = () => {
-    setPageNumber(0)
-    setSearchTerm(query.trim())
-  }
+    setPageNumber(0);
+    setSearchTerm(query.trim());
+  };
 
   const paddedRows = useMemo(() => {
-    const real = rows.slice(0, pageSize)
-    const missing = Math.max(0, pageSize - real.length)
-    return [...real, ...Array.from({ length: missing }, () => null)]
-  }, [rows, pageSize])
+    const real = rows.slice(0, pageSize);
+    const missing = Math.max(0, pageSize - real.length);
+    return [...real, ...Array.from({ length: missing }, () => null)];
+  }, [rows, pageSize]);
 
   const getRoleBadgeVariant = (role) => {
     const map = {
-      admin: 'admin',
-      user: 'user',
-      staff: 'staff'
-    }
-    return map[role?.toLowerCase()] || 'default'
-  }
+      admin: "admin",
+      user: "user",
+      staff: "staff",
+    };
+    return map[role?.toLowerCase()] || "default";
+  };
 
   /* =========================
    * RENDER
@@ -97,18 +128,22 @@ export default function UsersPage() {
   return (
     <div className="font-[var(--font-inter)]">
       {/* Breadcrumb */}
-      <Breadcrumb items={[
-        { label: 'Trang chủ', href: '/admin' },
-        { label: 'Quản lý người dùng' }
-      ]} />
+      <Breadcrumb
+        items={[
+          { label: "Trang chủ", href: "/admin" },
+          { label: "Quản lý người dùng" },
+        ]}
+      />
 
       {/* Header */}
       <div className="mt-3 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-[#334155]">Quản lý người dùng</h1>
+        <h1 className="text-2xl font-semibold text-[#334155]">
+          Quản lý người dùng
+        </h1>
 
         <button
           type="button"
-          onClick={() => toast.info('Tính năng thêm người dùng đang phát triển')}
+          onClick={() => navigate("/admin/staff/create")}
           className="h-9 rounded bg-[#0A804A] px-4 text-sm font-semibold text-white hover:opacity-90"
         >
           + Thêm Staff
@@ -124,7 +159,7 @@ export default function UsersPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="Tìm kiếm theo tên, email, số điện thoại..."
               className="h-10 w-full rounded border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-slate-400"
             />
@@ -132,7 +167,7 @@ export default function UsersPage() {
 
           <button
             type="button"
-            onClick={() => toast.info('Bộ lọc nâng cao đang phát triển')}
+            onClick={() => toast.info("Bộ lọc nâng cao đang phát triển")}
             className="h-10 w-10 rounded border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center justify-center"
           >
             <FiSliders />
@@ -172,26 +207,32 @@ export default function UsersPage() {
                         <div className="h-5" />
                       </td>
                     </tr>
-                  )
+                  );
                 }
 
-                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                const fullName =
+                  `${user.firstName || ""} ${user.lastName || ""}`.trim();
 
                 return (
-                  <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
+                  <tr
+                    key={user.id}
+                    className="border-b border-slate-100 hover:bg-slate-50"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <SquareAvatar
                           name={fullName}
-                          seed={user.email}
+                          seed={user.avatarImage}
                           size="sm"
                         />
                         <div>
                           <div className="font-medium">
-                            {fullName || 'Chưa có tên'}
+                            {fullName || "Chưa có tên"}
                           </div>
                           <div className="text-xs text-slate-500">
-                            {new Date(user.createdAt).toLocaleDateString('vi-VN')}
+                            {new Date(user.createdAt).toLocaleDateString(
+                              "vi-VN",
+                            )}
                           </div>
                         </div>
                       </div>
@@ -203,7 +244,7 @@ export default function UsersPage() {
                       </Badge>
                     </td>
 
-                    <td className="px-4 py-3">{user.phone || '-'}</td>
+                    <td className="px-4 py-3">{user.phone || "-"}</td>
                     <td className="px-4 py-3">{user.email}</td>
 
                     <td className="px-4 py-3">
@@ -215,12 +256,14 @@ export default function UsersPage() {
                         status={user.status}
                         showStatusActions={false}
                         onDetail={() => navigate(`/admin/users/${user.id}`)}
-                        onUpdate={() => navigate(`/admin/users/${user.id}/edit`)}
-                        onDelete={() => toast.error(`Xóa người dùng: ${user.email}`)}
+                        onUpdate={() =>
+                          navigate(`/admin/users/${user.id}/edit`)
+                        }
+                        onDelete={() => onDeleteUser(user.id)}
                       />
                     </td>
                   </tr>
-                )
+                );
               })}
             </tbody>
           </table>
@@ -239,5 +282,5 @@ export default function UsersPage() {
         />
       </div>
     </div>
-  )
+  );
 }
