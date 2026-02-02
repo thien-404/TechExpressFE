@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import instance from '../../../config/axios';
-import { Plus, Pencil, Trash2, Search, ChartBarStacked, Upload, X, ChevronRight, ChevronDown, Filter } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, ChartBarStacked, Upload, X, ChevronRight, ChevronDown, Filter, Eye } from 'lucide-react';
 import { storage } from '../../../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Pagination from '../../../components/common/Pagination';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 function CategoryPage() {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchInput, setSearchInput] = useState(''); // Input value before search
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState(null);
     const [editingCategory, setEditingCategory] = useState(null);
     const [formData, setFormData] = useState({ name: '', parentCategoryId: null, description: '', imageUrl: '' });
     const [imageFile, setImageFile] = useState(null);
@@ -34,20 +40,20 @@ function CategoryPage() {
         setLoading(true);
         try {
             const params = {
-                pageNumber: pageNumber + 1, // API uses 1-based
-                pageSize: pageSize
+                Page: pageNumber + 1, // API uses 1-based
+                PageSize: pageSize
             };
 
             if (searchTerm) {
-                params.name = searchTerm;
+                params.SearchName = searchTerm;
             }
 
             if (filterParentCategory) {
-                params.parentCategoryId = filterParentCategory;
+                params.ParentId = filterParentCategory;
             }
 
             if (filterStatus !== '') {
-                params.status = filterStatus === 'true';
+                params.Status = filterStatus === 'true';
             }
 
             const response = await instance.get('/Category', { params });
@@ -61,17 +67,14 @@ function CategoryPage() {
             setTotalPages(data.totalPages || 0);
         } catch (error) {
             console.log('fetching categories error:', error);
+            toast.error('Có lỗi xảy ra khi tải danh mục');
         } finally {
             setLoading(false);
         }
     }, [pageNumber, pageSize, searchTerm, filterParentCategory, filterStatus]);
 
     useEffect(() => {
-        const debounceTimer = setTimeout(() => {
-            handleFetchingCategories();
-        }, 300); // 300ms debounce for search
-
-        return () => clearTimeout(debounceTimer);
+        handleFetchingCategories();
     }, [handleFetchingCategories]);
 
     const handlePageChange = (newPage) => {
@@ -103,7 +106,7 @@ function CategoryPage() {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('Kích thước ảnh không được vượt quá 5MB');
+                toast.error('Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
             setImageFile(file);
@@ -131,15 +134,29 @@ function CategoryPage() {
         return downloadURL;
     };
 
-    const handleDeleteCategory = async (id) => {
-        if (window.confirm('Bạn có chắc chắn muốn xóa danh mục này?')) {
-            try {
-                await instance.delete(`/Category/${id}`);
-                handleFetchingCategories();
-            } catch (error) {
-                console.log('delete category error:', error);
-            }
+    const handleDeleteCategory = (category) => {
+        setCategoryToDelete(category);
+        setShowDeleteModal(true);
+    };
+
+    const confirmDeleteCategory = async () => {
+        if (!categoryToDelete) return;
+
+        try {
+            await instance.delete(`/Category/${categoryToDelete.id}`);
+            toast.success('Xóa danh mục thành công');
+            setShowDeleteModal(false);
+            setCategoryToDelete(null);
+            handleFetchingCategories();
+        } catch (error) {
+            console.log('delete category error:', error);
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa danh mục');
         }
+    };
+
+    const cancelDeleteCategory = () => {
+        setShowDeleteModal(false);
+        setCategoryToDelete(null);
     };
 
     const handleSubmit = async (e) => {
@@ -159,28 +176,37 @@ function CategoryPage() {
 
             if (editingCategory) {
                 await instance.patch(`/Category/update${editingCategory.id}`, dataToSubmit);
+                toast.success('Cập nhật danh mục thành công');
             } else {
                 console.log(dataToSubmit)
                 await instance.post('/Category', dataToSubmit);
+                toast.success('Thêm danh mục thành công');
                 setPageNumber(0); // Go to first page after adding new category
             }
             setShowModal(false);
             handleFetchingCategories();
         } catch (error) {
             console.log('submit category error:', error);
-            alert('Có lỗi xảy ra khi lưu danh mục');
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu danh mục');
         } finally {
             setUploading(false);
         }
     };
 
-    const handleSearch = (value) => {
-        setSearchTerm(value);
+    const handleSearch = () => {
+        setSearchTerm(searchInput);
         setPageNumber(0); // Reset to first page when searching
+    };
+
+    const handleSearchKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            handleSearch();
+        }
     };
 
     const handleClearFilters = () => {
         setSearchTerm('');
+        setSearchInput('');
         setFilterParentCategory('');
         setFilterStatus('');
         setPageNumber(0);
@@ -270,15 +296,24 @@ function CategoryPage() {
             <div className="space-y-3 mb-6">
                 {/* Top row: Search and Actions */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Tìm kiếm theo tên danh mục..."
-                            value={searchTerm}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                        />
+                    <div className="relative flex-1 flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Tìm kiếm theo tên danh mục..."
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={handleSearchKeyPress}
+                                className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                            />
+                        </div>
+                        <button
+                            onClick={handleSearch}
+                            className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium whitespace-nowrap"
+                        >
+                            Tìm kiếm
+                        </button>
                     </div>
                     <div className="flex gap-2">
                         <button
@@ -478,6 +513,13 @@ function CategoryPage() {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center justify-end gap-2">
                                                 <button
+                                                    onClick={() => navigate(`/admin/categories/${category.id}`)}
+                                                    className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-md transition"
+                                                    title="Xem chi tiết"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => handleEditCategory(category)}
                                                     className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition"
                                                     title="Chỉnh sửa"
@@ -485,7 +527,7 @@ function CategoryPage() {
                                                     <Pencil size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteCategory(category.id)}
+                                                    onClick={() => handleDeleteCategory(category)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-md transition"
                                                     title="Xóa"
                                                 >
@@ -513,7 +555,7 @@ function CategoryPage() {
                 )}
             </div>
 
-            {/* Modal */}
+            {/* Add/Edit Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -523,7 +565,7 @@ function CategoryPage() {
                         <form onSubmit={handleSubmit}>
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                    Tên danh mục *
+                                    Tên danh mục <span className='text-red-500'>*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -556,14 +598,14 @@ function CategoryPage() {
                             </div>
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                                    Mô tả
+                                    Mô tả <span className='text-red-500'>*</span>
                                 </label>
                                 <textarea
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     rows={3}
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                    placeholder="Nhập mô tả (tùy chọn)"
+                                    placeholder="Nhập mô tả"
                                 />
                             </div>
                             <div className='mb-6'>
@@ -617,6 +659,47 @@ function CategoryPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteModal && categoryToDelete && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                                <Trash2 className="text-red-600" size={24} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-800">Xác nhận xóa</h2>
+                            </div>
+                        </div>
+                        <p className="text-slate-600 mb-2">
+                            Bạn có chắc chắn muốn xóa danh mục này?
+                        </p>
+                        <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-6">
+                            <p className="font-medium text-slate-800">{categoryToDelete.name}</p>
+                            {categoryToDelete.description && (
+                                <p className="text-sm text-slate-600 mt-1">{categoryToDelete.description}</p>
+                            )}
+                        </div>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                type="button"
+                                onClick={cancelDeleteCategory}
+                                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition font-medium"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeleteCategory}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium"
+                            >
+                                Xóa danh mục
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

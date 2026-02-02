@@ -22,6 +22,7 @@ import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 
 //Customer Pages
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
+import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 
 
 export const router = createBrowserRouter([
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
 
       // Category Management
       { path: "categories", element: <CategoryPage /> },
+      { path: "categories/:categoryId", element: <CategoryDetailsPage/>}
 
       // Product Management
       { path: "products", element: <ProductPage /> },
