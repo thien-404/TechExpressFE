@@ -108,6 +108,7 @@ export default function ProductDetailPage() {
         toast.error(res?.message || "Không thể tải thông tin sản phẩm")
         return null
       }
+      console.log("Product detail:", res.value)
       return res.value
     },
   })

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { FiChevronDown, FiSearch, FiFolder, FiX } from 'react-icons/fi'
+import { FiChevronDown, FiSearch, FiFolder, FiX, FiChevronRight } from 'react-icons/fi'
 
 /* =========================
- * CATEGORY SELECT COMPONENT
+ * CATEGORY SELECT WITH MODAL
  * ========================= */
 export default function CategorySelect({ 
   value, 
@@ -12,62 +12,63 @@ export default function CategorySelect({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const dropdownRef = useRef(null)
-
-  // Close dropdown when click outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  const [expandedCategories, setExpandedCategories] = useState(new Set())
 
   /* =========================
    * BUILD HIERARCHICAL STRUCTURE
    * ========================= */
   const hierarchicalCategories = useMemo(() => {
-    const parentCategories = categories.filter(cat => !cat.parentCategoryId)
-    const childCategories = categories.filter(cat => cat.parentCategoryId)
+    const categoryMap = new Map()
+    const rootCategories = []
 
-    const result = []
-
-    parentCategories.forEach(parent => {
-      const children = childCategories.filter(child => child.parentCategoryId === parent.id)
-      
-      result.push({
-        ...parent,
-        isParent: true,
-        hasChildren: children.length > 0
-      })
-      
-      children.forEach(child => {
-        result.push({
-          ...child,
-          isChild: true,
-          parentName: parent.name
-        })
-      })
+    // First pass: create map
+    categories.forEach(cat => {
+      categoryMap.set(cat.id, { ...cat, children: [] })
     })
 
-    return result
+    // Second pass: organize tree
+    categories.forEach(cat => {
+      if (cat.parentCategoryId) {
+        const parent = categoryMap.get(cat.parentCategoryId)
+        if (parent) {
+          parent.children.push(categoryMap.get(cat.id))
+        } else {
+          rootCategories.push(categoryMap.get(cat.id))
+        }
+      } else {
+        rootCategories.push(categoryMap.get(cat.id))
+      }
+    })
+
+    return rootCategories
   }, [categories])
 
   /* =========================
-   * FILTER BY SEARCH
+   * FLATTEN FOR DISPLAY
    * ========================= */
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) return hierarchicalCategories
+  const displayCategories = useMemo(() => {
+    const flattened = []
 
-    const query = searchQuery.toLowerCase()
-    return hierarchicalCategories.filter(cat => 
-      cat.name.toLowerCase().includes(query) ||
-      cat.description?.toLowerCase().includes(query) ||
-      cat.parentName?.toLowerCase().includes(query)
-    )
-  }, [hierarchicalCategories, searchQuery])
+    const flatten = (cats, level = 0) => {
+      cats.forEach(cat => {
+        // Filter by search
+        const matchesSearch = !searchQuery.trim() || 
+          cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          cat.description?.toLowerCase().includes(searchQuery.toLowerCase())
+
+        if (matchesSearch) {
+          flattened.push({ ...cat, level })
+        }
+
+        if (cat.children && cat.children.length > 0 && expandedCategories.has(cat.id)) {
+          flatten(cat.children, level + 1)
+        }
+      })
+    }
+
+    flatten(hierarchicalCategories)
+    return flattened
+  }, [hierarchicalCategories, expandedCategories, searchQuery])
 
   /* =========================
    * SELECTED CATEGORY
@@ -76,24 +77,51 @@ export default function CategorySelect({
     return categories.find(cat => cat.id === value)
   }, [categories, value])
 
+  /* =========================
+   * HANDLERS
+   * ========================= */
   const handleSelect = (categoryId) => {
     onChange(categoryId)
     setIsOpen(false)
     setSearchQuery('')
+    setExpandedCategories(new Set())
   }
 
   const handleClear = (e) => {
     e.stopPropagation()
     onChange('')
-    setSearchQuery('')
+  }
+
+  const toggleCategory = (categoryId, e) => {
+    e.stopPropagation()
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(categoryId)) {
+        newSet.delete(categoryId)
+      } else {
+        newSet.add(categoryId)
+      }
+      return newSet
+    })
+  }
+
+  const expandAll = () => {
+    const allParentIds = categories
+      .filter(cat => categories.some(c => c.parentCategoryId === cat.id))
+      .map(cat => cat.id)
+    setExpandedCategories(new Set(allParentIds))
+  }
+
+  const collapseAll = () => {
+    setExpandedCategories(new Set())
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen(true)}
         className="h-10 w-full rounded border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all bg-white text-left flex items-center justify-between"
       >
         <span className={selectedCategory ? 'text-slate-700' : 'text-slate-400'}>
@@ -109,91 +137,143 @@ export default function CategorySelect({
               <FiX size={14} className="text-slate-400" />
             </div>
           )}
-          <FiChevronDown 
-            size={16} 
-            className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          />
+          <FiChevronDown size={16} className="text-slate-400" />
         </div>
       </button>
 
-      {/* Dropdown */}
+      {/* Modal */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
-          {/* Search Box */}
-          <div className="p-3 border-b border-slate-100 bg-slate-50">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm danh mục..."
-                className="w-full h-9 pl-9 pr-3 border border-slate-200 rounded text-sm outline-none focus:border-slate-400 transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
-
-          {/* Category List */}
-          <div className="max-h-64 overflow-y-auto">
-            {filteredCategories.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
-                Không tìm thấy danh mục
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col shadow-xl">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-800">
+                  Chọn danh mục
+                </h3>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <FiX size={20} className="text-slate-500" />
+                </button>
               </div>
-            ) : (
-              <div className="py-1">
-                {filteredCategories.map((category) => (
-                  <button
-                    key={category.id}
-                    type="button"
-                    onClick={() => handleSelect(category.id)}
-                    className={`w-full px-3 py-2.5 text-left text-sm flex items-center gap-2 transition-colors ${
-                      value === category.id
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'hover:bg-slate-50 text-slate-700'
-                    } ${
-                      category.isChild ? 'pl-8' : ''
-                    }`}
-                  >
-                    {/* Icon */}
-                    {category.isParent && (
-                      category.hasChildren ? (
-                        <FiFolder size={16} className="text-slate-400 flex-shrink-0" />
-                      ) : (
-                        <FiFolder size={16} className="text-slate-400 flex-shrink-0" />
-                      )
-                    )}
-                    
-                    {category.isChild && (
-                      <span className="text-slate-300 flex-shrink-0">└─</span>
-                    )}
+            </div>
 
-                    {/* Name & Description */}
-                    <div className="flex-1 min-w-0">
-                      <div className="truncate">{category.name}</div>
-                      {category.description && (
-                        <div className="text-xs text-slate-500 truncate mt-0.5">
-                          {category.description}
+            {/* Search & Controls */}
+            <div className="px-6 py-4 border-b border-slate-200 space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm theo tên danh mục..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+
+              {/* Expand/Collapse */}
+              <div className="flex gap-2">
+                <button
+                  onClick={expandAll}
+                  className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                >
+                  <FiChevronDown size={16} />
+                  Mở rộng tất cả
+                </button>
+                <button
+                  onClick={collapseAll}
+                  className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                >
+                  <FiChevronRight size={16} />
+                  Thu gọn tất cả
+                </button>
+              </div>
+            </div>
+
+            {/* Category List */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {displayCategories.length === 0 ? (
+                <div className="py-12 text-center text-sm text-slate-500">
+                  Không tìm thấy danh mục
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {displayCategories.map((category) => (
+                    <div
+                      key={category.id}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                        value === category.id
+                          ? 'bg-blue-50 text-blue-700 font-medium'
+                          : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                      style={{ paddingLeft: `${12 + category.level * 24}px` }}
+                      onClick={() => handleSelect(category.id)}
+                    >
+                      {/* Expand/Collapse Button */}
+                      {category.children && category.children.length > 0 ? (
+                        <button
+                          onClick={(e) => toggleCategory(category.id, e)}
+                          className="p-1 hover:bg-slate-200 rounded transition flex-shrink-0"
+                        >
+                          {expandedCategories.has(category.id) ? (
+                            <FiChevronDown size={16} className="text-slate-600" />
+                          ) : (
+                            <FiChevronRight size={16} className="text-slate-600" />
+                          )}
+                        </button>
+                      ) : (
+                        <div className="w-6" /> // Spacer
+                      )}
+
+                      {/* Icon */}
+                      <FiFolder size={16} className="flex-shrink-0 text-slate-400" />
+
+                      {/* Name & Description */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          {category.level > 0 && (
+                            <span className="text-slate-300">└─</span>
+                          )}
+                          <span className="truncate">{category.name}</span>
+                          {category.children && category.children.length > 0 && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium flex-shrink-0">
+                              {category.children.length}
+                            </span>
+                          )}
                         </div>
+                        {category.description && (
+                          <div className="text-xs text-slate-500 truncate mt-0.5">
+                            {category.description}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected Indicator */}
+                      {value === category.id && (
+                        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                       )}
                     </div>
-
-                    {/* Selected Indicator */}
-                    {value === category.id && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          {filteredCategories.length > 0 && (
-            <div className="p-2 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-center">
-              {filteredCategories.length} danh mục
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>{displayCategories.length} danh mục</span>
+                {selectedCategory && (
+                  <span className="font-medium text-slate-700">
+                    Đã chọn: {selectedCategory.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -241,7 +321,7 @@ export function CategorySelectExample() {
 
   return (
     <div className="p-8 max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Category Select Demo</h2>
+      <h2 className="text-xl font-semibold mb-4">Category Select Modal Demo</h2>
       
       <CategorySelect
         value={selectedCategory}
@@ -251,7 +331,7 @@ export function CategorySelectExample() {
 
       {selectedCategory && (
         <div className="mt-4 p-3 bg-blue-50 rounded text-sm">
-          Selected: <strong>{selectedCategory}</strong>
+          Selected: <strong>{mockCategories.find(c => c.id === selectedCategory)?.name}</strong>
         </div>
       )}
     </div>
