@@ -22,6 +22,7 @@ import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 
 //Customer Pages
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
+import HomePage from "../pages/customer/HomePage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
@@ -29,7 +30,7 @@ import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 export const router = createBrowserRouter([
   {
     path: "/", element: <CustomerLayout />, children: [
-      { index: true, element: <h2>Home Page</h2>},
+      { index: true, element: <HomePage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
