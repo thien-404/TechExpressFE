@@ -9,18 +9,15 @@ const instance = axios.create({
   timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true' 
+    'ngrok-skip-browser-warning': 'true'
   }
 })
 
 
-let navigate = null
 
-export const setNavigate = (navigateFunction) => {
-  navigate = navigateFunction
-}
-
-
+/* =========================
+   Request interceptor
+========================= */
 instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -29,12 +26,24 @@ instance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    // Handle FormData (file upload)
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type']
     }
+
     config.metadata = {
       startTime: performance.now()
+    }
+
+    const fullUrl = `${config.baseURL?.replace(/\/$/, '')}${config.url}`
+    if (config.params) {
+      const query = new URLSearchParams(config.params).toString()
+      console.log(
+        `[API REQUEST] ${config.method?.toUpperCase()} ${fullUrl}?${query}`
+      )
+    } else {
+      console.log(
+        `[API REQUEST] ${config.method?.toUpperCase()} ${fullUrl}`
+      )
     }
 
     return config
@@ -45,6 +54,38 @@ instance.interceptors.request.use(
 /* =========================
    Response interceptor
 ========================= */
+let isRefreshing = false
+let refreshQueue = []
+
+export async function refreshAccessToken() {
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      refreshQueue.push({ resolve, reject })
+    })
+  }
+
+  isRefreshing = true
+  try {
+    const refreshToken = localStorage.getItem('refreshToken')
+    const response = await axios.post(`${baseURL}/Auth/refresh`, {
+      refreshToken
+    })
+    const newToken = response.data.value
+    localStorage.setItem('token', newToken)
+
+    refreshQueue.forEach(({ resolve }) => resolve(newToken))
+    refreshQueue = []
+
+    return newToken
+  } catch (err) {
+    refreshQueue.forEach(({ reject }) => reject(err))
+    refreshQueue = []
+    throw err
+  } finally {
+    isRefreshing = false
+  }
+}
+
 instance.interceptors.response.use(
   (response) => {
     const endTime = performance.now()
@@ -60,12 +101,12 @@ instance.interceptors.response.use(
       `[API RESPONSE] ${response.config.method?.toUpperCase()} ${fullUrl} | ${elapsedMs} ms`
     )
 
-    // GẮN elapsedMs vào response
     response.elapsedMs = elapsedMs
 
     return response
   },
-  (error) => {
+  async (error) => {
+    // --- timing log (runs for every error) ---
     const endTime = performance.now()
     const startTime = error.config?.metadata?.startTime
 
@@ -83,39 +124,26 @@ instance.interceptors.response.use(
       error.response.elapsedMs = elapsedMs
     }
 
+    // --- token refresh (only on 401) ---
+    const originalRequest = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+
+      try {
+        const newToken = await refreshAccessToken()
+        originalRequest.headers.Authorization = `Bearer ${newToken}`
+        return instance(originalRequest)
+      } catch (refreshErr) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        toast.info("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.")
+        return Promise.reject(refreshErr)
+      }
+    }
+
     return Promise.reject(error)
   }
-)
-
-
-instance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-
-    if (config.data instanceof FormData) {
-      delete config.headers['Content-Type']
-    }
-
-    // ✅ LOG FULL URL
-    const fullUrl = `${config.baseURL?.replace(/\/$/, '')}${config.url}`
-    if (config.params) {
-      const query = new URLSearchParams(config.params).toString()
-      console.log(
-        `[API REQUEST] ${config.method?.toUpperCase()} ${fullUrl}?${query}`
-      )
-    } else {
-      console.log(
-        `[API REQUEST] ${config.method?.toUpperCase()} ${fullUrl}`
-      )
-    }
-
-    return config
-  },
-  (error) => Promise.reject(error)
 )
 
 
@@ -223,5 +251,3 @@ export const apiService = {
 }
 
 export default instance
-
-

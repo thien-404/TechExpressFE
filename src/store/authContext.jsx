@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import { decodeToken, isTokenExpired, isValidJWT } from '../utils/jwt'
 import { jwtDecode } from 'jwt-decode'
+import { refreshAccessToken } from '../config/axios'
 
 const AuthContext = createContext(undefined)
 
@@ -35,25 +36,30 @@ export const AuthProvider = ({ children }) => {
   const scheduleAutoLogout = useCallback((jwt) => {
     clearLogoutTimer()
 
+    const tryRefresh = () => {
+      refreshAccessToken()
+        .then((newToken) => {
+          const decodedUser = decodeToken(newToken)
+          setToken(newToken)
+          setUser(decodedUser)
+        })
+        .catch(() => logout())
+    }
+
     try {
       const decoded = jwtDecode(jwt)
       if (!decoded?.exp) return
 
       const msLeft = decoded.exp * 1000 - Date.now()
 
-      // nếu đã hết hạn thì logout ngay
       if (msLeft <= 0) {
-        logout()
+        tryRefresh()
         return
       }
 
-      // ✅ trừ 1 chút "buffer" để tránh lệch giờ (optional)
       const bufferMs = 1000
-      logoutTimerRef.current = setTimeout(() => {
-        logout()
-      }, Math.max(0, msLeft - bufferMs))
+      logoutTimerRef.current = setTimeout(tryRefresh, Math.max(0, msLeft - bufferMs))
     } catch {
-      // token lỗi thì logout cho an toàn
       logout()
     }
   }, [logout])
@@ -61,19 +67,15 @@ export const AuthProvider = ({ children }) => {
   // Load token từ localStorage khi mount
   useEffect(() => {
     const savedToken = localStorage.getItem('token')
-    if (savedToken) {
-      try {
-        if (!isValidJWT(savedToken) || isTokenExpired(savedToken)) {
-          logout()
-          setLoading(false)
-          return
-        }
 
+    // Token exists and is still valid — use it directly
+    if (savedToken && isValidJWT(savedToken) && !isTokenExpired(savedToken)) {
+      try {
         const decodedUser = decodeToken(savedToken)
         if (decodedUser) {
           setToken(savedToken)
           setUser(decodedUser)
-          scheduleAutoLogout(savedToken) // ✅ set timer ngay khi load
+          scheduleAutoLogout(savedToken)
         } else {
           logout()
         }
@@ -81,8 +83,30 @@ export const AuthProvider = ({ children }) => {
         console.error('Error processing saved token:', error)
         logout()
       }
+      setLoading(false)
+      return
     }
 
+    // Token is missing or expired — try refresh if refreshToken exists
+    const savedRefreshToken = localStorage.getItem('refreshToken')
+    if (savedRefreshToken) {
+      refreshAccessToken()
+        .then((newToken) => {
+          const decodedUser = decodeToken(newToken)
+          if (decodedUser) {
+            setToken(newToken)
+            setUser(decodedUser)
+            scheduleAutoLogout(newToken)
+          } else {
+            logout()
+          }
+        })
+        .catch(() => logout())
+        .finally(() => setLoading(false))
+      return
+    }
+
+    // No token and no refresh token
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
