@@ -5,7 +5,8 @@ import {
   FiDollarSign,
   FiBox,
   FiInfo,
-  FiImage
+  FiImage,
+  FiShield
 } from "react-icons/fi"
 
 /* =========================
@@ -46,7 +47,7 @@ const InfoRow = ({ icon: Icon, label, value, highlight = false }) => (
         highlight ? "text-blue-600" : "text-slate-700"
       }`}
     >
-      {value || "-"}
+      {value ?? "-"}
     </div>
   </div>
 )
@@ -63,14 +64,14 @@ const formatPrice = (price) =>
 /* =========================
  * PRODUCT INFO TAB
  * ========================= */
-export default function ProductInfoTab({ product }) {
+export default function ProductInfoTab({ product, brandName }) {
   if (!product) return null
 
   const images = product.thumbnailUrl || []
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* Left Column */}
+      {/* LEFT */}
       <div className="lg:col-span-4">
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
@@ -81,7 +82,7 @@ export default function ProductInfoTab({ product }) {
               </span>
             </div>
           </div>
-          
+
           <div className="p-6">
             {images.length > 0 ? (
               <img
@@ -98,9 +99,9 @@ export default function ProductInfoTab({ product }) {
         </div>
       </div>
 
-      {/* Right Column */}
+      {/* RIGHT */}
       <div className="lg:col-span-8 space-y-6">
-        {/* Basic Info */}
+        {/* BASIC INFO */}
         <div className="rounded-lg border border-slate-200 bg-white">
           <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
             <div className="flex items-center gap-2">
@@ -110,34 +111,35 @@ export default function ProductInfoTab({ product }) {
               </span>
             </div>
           </div>
-          
+
           <div className="p-4 space-y-2">
-            <InfoRow
+            <InfoRow icon={FiTag} label="Tên sản phẩm" value={product.name} highlight />
+            <InfoRow icon={FiPackage} label="SKU" value={product.sku} />
+            <InfoRow icon={FiBox} label="Danh mục" value={product.categoryName} />
+            {/* <InfoRow
               icon={FiTag}
-              label="Tên sản phẩm"
-              value={product.name}
-              highlight
-            />
-            <InfoRow
-              icon={FiPackage}
-              label="SKU"
-              value={product.sku}
-            />
-            <InfoRow
-              icon={FiBox}
-              label="Danh mục"
-              value={product.categoryName}
-            />
+              label="Thương hiệu"
+              value={brandName || product.brandId}
+            /> */}
             <InfoRow
               icon={FiDollarSign}
               label="Giá"
               value={formatPrice(product.price)}
               highlight
             />
+            <InfoRow
+              icon={FiShield}
+              label="Bảo hành"
+              value={
+                product.warrantyMonth > 0
+                  ? `${product.warrantyMonth} tháng`
+                  : "Không bảo hành"
+              }
+            />
           </div>
         </div>
 
-        {/* Stock & Status */}
+        {/* STOCK & STATUS */}
         <div className="rounded-lg border border-slate-200 bg-white">
           <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
             <div className="flex items-center gap-2">
@@ -147,19 +149,21 @@ export default function ProductInfoTab({ product }) {
               </span>
             </div>
           </div>
-          
+
           <div className="p-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-lg bg-slate-50 p-4 border border-slate-200">
                 <div className="text-xs text-slate-600 mb-1">Số lượng tồn</div>
-                <div className={`text-2xl font-bold ${
-                  product.stockQty <= 10
-                    ? "text-red-600"
-                    : product.stockQty <= 30
-                    ? "text-orange-600"
-                    : "text-green-600"
-                }`}>
-                  {product.stockQty}
+                <div
+                  className={`text-2xl font-bold ${
+                    product.stock <= 10
+                      ? "text-red-600"
+                      : product.stock <= 30
+                      ? "text-orange-600"
+                      : "text-green-600"
+                  }`}
+                >
+                  {product.stock}
                 </div>
               </div>
 
@@ -173,15 +177,13 @@ export default function ProductInfoTab({ product }) {
           </div>
         </div>
 
-        {/* Description */}
+        {/* DESCRIPTION */}
         {product.description && (
           <div className="rounded-lg border border-slate-200 bg-white">
             <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-              <span className="text-sm font-semibold text-[#334155]">
-                Mô tả
-              </span>
+              <span className="text-sm font-semibold text-[#334155]">Mô tả</span>
             </div>
-            
+
             <div className="p-4">
               <p className="text-sm text-slate-600 leading-relaxed">
                 {product.description}
@@ -190,14 +192,12 @@ export default function ProductInfoTab({ product }) {
           </div>
         )}
 
-        {/* Timestamps */}
+        {/* TIME */}
         <div className="rounded-lg border border-slate-200 bg-white">
           <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-            <span className="text-sm font-semibold text-[#334155]">
-              Thời gian
-            </span>
+            <span className="text-sm font-semibold text-[#334155]">Thời gian</span>
           </div>
-          
+
           <div className="p-4 space-y-2">
             <InfoRow
               label="Ngày tạo"

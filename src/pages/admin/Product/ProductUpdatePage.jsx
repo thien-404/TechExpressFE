@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react"
-import { useNavigate, useParams } from "react-router-dom"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { queryClient } from "../../../config/queryClient"
-import { toast } from "sonner"
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { queryClient } from "../../../config/queryClient";
+import { toast } from "sonner";
 import {
   FiArrowLeft,
   FiPackage,
@@ -12,19 +12,20 @@ import {
   FiAlertCircle,
   FiCpu,
   FiInfo,
-} from "react-icons/fi"
+} from "react-icons/fi";
 
-import { apiService } from "../../../config/axios"
-import Breadcrumb from "../../../components/ui/Breadcrumb"
-import CategorySelect from "../../../components/ui/select/CategorySelect"
+import { apiService } from "../../../config/axios";
+import Breadcrumb from "../../../components/ui/Breadcrumb";
+import CategorySelect from "../../../components/ui/select/CategorySelect";
+import BrandSelect from "../../../components/ui/select/BrandSelect";
 
 /* =========================
  * STYLES
  * ========================= */
 const inputClass =
-  "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all"
+  "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all";
 
-const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600"
+const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600";
 
 /* =========================
  * FIELD COMPONENT
@@ -43,7 +44,7 @@ const Field = ({ label, error, required = false, children }) => (
       </div>
     )}
   </div>
-)
+);
 
 /* =========================
  * SECTION COMPONENT
@@ -58,32 +59,34 @@ const Section = ({ title, icon: Icon, children }) => (
     </div>
     <div className="p-6">{children}</div>
   </div>
-)
+);
 
 /* =========================
  * MAIN PAGE
  * ========================= */
 export default function ProductUpdatePage() {
-  const { productId } = useParams()
-  const navigate = useNavigate()
+  const { productId } = useParams();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     name: "",
     sku: "",
     categoryId: "",
+    brandId: "",
     price: 0,
-    stockQty: 0,
+    stock: 0,
+    warrantyMonth: 0,
     status: 0,
     description: "",
-    specValues: []
-  })
+    specValues: [],
+  });
 
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState({});
 
   const setField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-    setErrors((prev) => ({ ...prev, [key]: null }))
-  }
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: null }));
+  };
 
   /* =========================
    * FETCH PRODUCT DATA
@@ -92,14 +95,14 @@ export default function ProductUpdatePage() {
     enabled: !!productId,
     queryKey: ["product-detail", productId],
     queryFn: async () => {
-      const res = await apiService.get(`/product/${productId}`)
+      const res = await apiService.get(`/product/${productId}`);
       if (res?.statusCode !== 200) {
-        toast.error(res?.message || "Không thể tải thông tin sản phẩm")
-        return null
+        toast.error(res?.message || "Không thể tải thông tin sản phẩm");
+        return null;
       }
-      return res.value
+      return res.value;
     },
-  })
+  });
 
   /* =========================
    * FETCH CATEGORIES
@@ -107,13 +110,30 @@ export default function ProductUpdatePage() {
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-all"],
     queryFn: async () => {
-      const res = await apiService.get("/category")
-      return res?.statusCode === 200 ? res.value?.items || [] : []
+      const res = await apiService.get("/category");
+      return res?.statusCode === 200 ? res.value?.items || [] : [];
     },
     staleTime: 5 * 60 * 1000,
-  })
+  });
 
-  const categories = categoriesData || []
+  const categories = categoriesData || [];
+
+  /* =========================
+   * FETCH BRANDS
+   * ========================= */
+  const { data: brandsData } = useQuery({
+    queryKey: ["brands"],
+    queryFn: async () => {
+      const res = await apiService.get("/brand", {
+        pageNumber: 1,
+        pageSize: 100,
+      });
+      return res?.statusCode === 200 ? res.value?.items || [] : [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const brands = brandsData || [];
 
   /* =========================
    * FETCH SPEC DEFINITIONS
@@ -121,125 +141,136 @@ export default function ProductUpdatePage() {
   const { data: specsData, isLoading: specsLoading } = useQuery({
     queryKey: ["spec-definitions", form.categoryId],
     queryFn: async () => {
-      if (!form.categoryId) return []
-      
-      const res = await apiService.get(`/specdefinition/category/${form.categoryId}`)
-      return res?.statusCode === 200 ? res.value?.items || [] : []
+      if (!form.categoryId) return [];
+
+      const res = await apiService.get(
+        `/specdefinition/category/${form.categoryId}`,
+      );
+      return res?.statusCode === 200 ? res.value?.items || [] : [];
     },
     enabled: !!form.categoryId,
     staleTime: 5 * 60 * 1000,
-  })
+  });
 
-  const specDefinitions = specsData || []
+  const specDefinitions = specsData || [];
 
   /* =========================
    * POPULATE FORM khi có product data
    * ========================= */
   useEffect(() => {
-    if (!product) return
+    if (!product) return;
 
     setForm({
       name: product.name || "",
       sku: product.sku || "",
       categoryId: product.categoryId || "",
+      brandId: product.brandId || "",
       price: product.price || 0,
-      stockQty: product.stockQty || 0,
+      stock: product.stock || 0,
+      warrantyMonth: product.warrantyMonth ?? 0,
       status: product.status === "Available" ? 0 : 1,
       description: product.description || "",
-      specValues: (product.specValues || []).map(s => ({
+      specValues: (product.specValues || []).map((s) => ({
         specDefinitionId: s.specDefinitionId,
-        value: s.value
-      }))
-    })
-  }, [product])
+        value: s.value,
+      })),
+    });
+  }, [product]);
 
   /* =========================
    * UPDATE SPEC VALUE
    * ========================= */
   const updateSpecValue = (specDefId, value) => {
     setForm((prev) => {
-      const existing = prev.specValues.find(s => s.specDefinitionId === specDefId)
-      
+      const existing = prev.specValues.find(
+        (s) => s.specDefinitionId === specDefId,
+      );
+
       if (existing) {
         return {
           ...prev,
-          specValues: prev.specValues.map(s =>
-            s.specDefinitionId === specDefId ? { ...s, value } : s
-          )
-        }
+          specValues: prev.specValues.map((s) =>
+            s.specDefinitionId === specDefId ? { ...s, value } : s,
+          ),
+        };
       } else {
         return {
           ...prev,
-          specValues: [...prev.specValues, { specDefinitionId: specDefId, value }]
-        }
+          specValues: [
+            ...prev.specValues,
+            { specDefinitionId: specDefId, value },
+          ],
+        };
       }
-    })
-  }
+    });
+  };
 
   const getSpecValue = (specDefId) => {
-    const spec = form.specValues.find(s => s.specDefinitionId === specDefId)
-    return spec?.value || ""
-  }
+    const spec = form.specValues.find((s) => s.specDefinitionId === specDefId);
+    return spec?.value || "";
+  };
 
   /* =========================
    * IMAGE UPLOAD
    * ========================= */
   const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length === 0) return
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     try {
-      setUploading(true)
-      
+      setUploading(true);
+
       // TODO: Implement actual image upload
       // const uploadedUrls = await uploadProductImages(files, productId)
-      
-      toast.info("Tính năng upload ảnh đang phát triển")
-      
+
+      toast.info("Tính năng upload ảnh đang phát triển");
+
       // setForm(prev => ({
       //   ...prev,
       //   images: [...prev.images, ...uploadedUrls]
       // }))
-      
     } catch (error) {
-      toast.error("Upload ảnh thất bại")
+      toast.error("Upload ảnh thất bại");
     } finally {
-      setUploading(false)
+      setUploading(false);
     }
-  }
+  };
 
   const handleRemoveImage = (index) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
-  }
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
 
   /* =========================
    * VALIDATION
    * ========================= */
   const validate = () => {
-    const newErrors = {}
+    const newErrors = {};
 
-    if (!form.name?.trim()) newErrors.name = "Tên sản phẩm là bắt buộc"
-    if (!form.sku?.trim()) newErrors.sku = "SKU là bắt buộc"
-    if (!form.categoryId) newErrors.categoryId = "Vui lòng chọn danh mục"
-    if (form.price <= 0) newErrors.price = "Giá phải lớn hơn 0"
-    if (form.stockQty < 0) newErrors.stockQty = "Số lượng không được âm"
+    if (!form.name?.trim()) newErrors.name = "Tên sản phẩm là bắt buộc";
+    if (!form.sku?.trim()) newErrors.sku = "SKU là bắt buộc";
+    if (!form.categoryId) newErrors.categoryId = "Vui lòng chọn danh mục";
+    if (!form.brandId) newErrors.brandId = "Vui lòng chọn thương hiệu";
+    if (form.price <= 0) newErrors.price = "Giá phải lớn hơn 0";
+    if (form.stock < 0) newErrors.stock = "Số lượng không được âm";
+    if (form.warrantyMonth < 0)
+      newErrors.warrantyMonth = "Bảo hành không hợp lệ";
 
     // Validate required specs
-    specDefinitions.forEach(spec => {
+    specDefinitions.forEach((spec) => {
       if (spec.isRequired) {
-        const value = getSpecValue(spec.id)
+        const value = getSpecValue(spec.id);
         if (!value?.trim()) {
-          newErrors[`spec_${spec.id}`] = `${spec.name} là bắt buộc`
+          newErrors[`spec_${spec.id}`] = `${spec.name} là bắt buộc`;
         }
       }
-    })
+    });
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   /* =========================
    * UPDATE MUTATION
@@ -250,42 +281,46 @@ export default function ProductUpdatePage() {
         name: form.name.trim(),
         sku: form.sku.trim(),
         categoryId: form.categoryId,
+        brandId: form.brandId,
+        warrantyMonth: Number(form.warrantyMonth),
         price: Number(form.price),
-        stockQty: Number(form.stockQty),
+        stock: Number(form.stock),
         status: Number(form.status),
         description: form.description.trim(),
-        specValues: form.specValues.filter(s => s.value?.trim())
-      }
+        specValues: form.specValues.filter((s) => s.value?.trim()),
+      };
 
-      const res = await apiService.put(`/product/${productId}`, payload)
+      const res = await apiService.put(`/product/${productId}`, payload);
 
       if (res?.statusCode !== 200) {
-        throw new Error(res?.message || "Cập nhật sản phẩm thất bại")
+        throw new Error(res?.message || "Cập nhật sản phẩm thất bại");
       }
 
-      return res.value
+      return res.value;
     },
     onSuccess: () => {
-      toast.success("Cập nhật sản phẩm thành công")
-      queryClient.invalidateQueries({ queryKey: ["product-detail", productId] })
-      queryClient.invalidateQueries({ queryKey: ["products"] })
-      navigate(`/admin/products/${productId}`)
+      toast.success("Cập nhật sản phẩm thành công");
+      queryClient.invalidateQueries({
+        queryKey: ["product-detail", productId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      navigate(`/admin/products/${productId}`);
     },
     onError: (err) => {
-      toast.error(err?.message || "Cập nhật sản phẩm thất bại")
-    }
-  })
+      toast.error(err?.message || "Cập nhật sản phẩm thất bại");
+    },
+  });
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!validate()) {
-      toast.error("Vui lòng kiểm tra lại thông tin")
-      return
+      toast.error("Vui lòng kiểm tra lại thông tin");
+      return;
     }
 
-    updateMutation.mutate()
-  }
+    updateMutation.mutate();
+  };
 
   /* =========================
    * LOADING STATE
@@ -295,12 +330,12 @@ export default function ProductUpdatePage() {
       <div className="flex items-center justify-center p-12">
         <div className="text-sm text-slate-500">Đang tải thông tin...</div>
       </div>
-    )
+    );
   }
 
-  if (!product) return null
+  if (!product) return null;
 
-  const isSubmitting = updateMutation.isPending
+  const isSubmitting = updateMutation.isPending;
 
   /* =========================
    * RENDER
@@ -314,7 +349,7 @@ export default function ProductUpdatePage() {
             { label: "Trang chủ", href: "/admin" },
             { label: "Quản lý sản phẩm", href: "/admin/products" },
             { label: product.name, href: `/admin/products/${productId}` },
-            { label: "Chỉnh sửa" }
+            { label: "Chỉnh sửa" },
           ]}
         />
 
@@ -333,9 +368,7 @@ export default function ProductUpdatePage() {
         <h1 className="text-2xl font-semibold text-[#334155]">
           Chỉnh sửa sản phẩm
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {product.name}
-        </p>
+        <p className="text-sm text-slate-500 mt-1">{product.name}</p>
       </div>
 
       {/* Form */}
@@ -346,7 +379,10 @@ export default function ProductUpdatePage() {
             {/* Name */}
             <Field label="Tên sản phẩm" error={errors.name} required>
               <div className="relative">
-                <FiPackage className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiPackage
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="text"
                   value={form.name}
@@ -360,7 +396,10 @@ export default function ProductUpdatePage() {
             {/* SKU */}
             <Field label="SKU" error={errors.sku} required>
               <div className="relative">
-                <FiTag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiTag
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="text"
                   value={form.sku}
@@ -381,6 +420,16 @@ export default function ProductUpdatePage() {
               />
             </Field>
 
+            {/* Brand */}
+            <Field label="Thương hiệu" error={errors.brandId} required>
+              <BrandSelect
+                value={form.brandId}
+                onChange={(id) => setField("brandId", id)}
+                brands={brands}
+                placeholder="Chọn thương hiệu sản phẩm"
+              />
+            </Field>
+
             {/* Status */}
             <Field label="Trạng thái" required>
               <select
@@ -396,7 +445,10 @@ export default function ProductUpdatePage() {
             {/* Price */}
             <Field label="Giá (VNĐ)" error={errors.price} required>
               <div className="relative">
-                <FiDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiDollarSign
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="number"
                   value={form.price}
@@ -410,18 +462,33 @@ export default function ProductUpdatePage() {
             </Field>
 
             {/* Stock Qty */}
-            <Field label="Số lượng tồn kho" error={errors.stockQty} required>
+            <Field label="Số lượng tồn kho" error={errors.stock} required>
               <div className="relative">
-                <FiBox className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiBox
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="number"
-                  value={form.stockQty}
-                  onChange={(e) => setField("stockQty", e.target.value)}
+                  value={form.stock}
+                  onChange={(e) => setField("stock", e.target.value)}
                   className={`${inputClass} pl-10`}
                   placeholder="VD: 30"
                   min="0"
                 />
               </div>
+            </Field>
+
+            {/* Warranty Month */}
+            <Field label="Bảo hành (tháng)" error={errors.warrantyMonth}>
+              <input
+                type="number"
+                min="0"
+                value={form.warrantyMonth}
+                onChange={(e) => setField("warrantyMonth", e.target.value)}
+                className={inputClass}
+                placeholder="VD: 12"
+              />
             </Field>
 
             {/* Description */}
@@ -448,12 +515,13 @@ export default function ProductUpdatePage() {
             ) : specDefinitions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {specDefinitions.map((spec) => {
-                  const inputType = 
-                    spec.acceptValueType === "Number" || spec.acceptValueType === "Decimal"
+                  const inputType =
+                    spec.acceptValueType === "Number" ||
+                    spec.acceptValueType === "Decimal"
                       ? "number"
-                      : "text"
-                  
-                  const step = spec.acceptValueType === "Decimal" ? "0.1" : "1"
+                      : "text";
+
+                  const step = spec.acceptValueType === "Decimal" ? "0.1" : "1";
 
                   return (
                     <Field
@@ -463,12 +531,17 @@ export default function ProductUpdatePage() {
                       required={spec.isRequired}
                     >
                       <div className="relative">
-                        <FiCpu className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <FiCpu
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          size={16}
+                        />
                         <input
                           type={inputType}
                           value={getSpecValue(spec.id)}
-                          onChange={(e) => updateSpecValue(spec.id, e.target.value)}
-                          className={`${inputClass} pl-10 ${spec.unit ? 'pr-16' : ''}`}
+                          onChange={(e) =>
+                            updateSpecValue(spec.id, e.target.value)
+                          }
+                          className={`${inputClass} pl-10 ${spec.unit ? "pr-16" : ""}`}
                           placeholder={spec.description || spec.name}
                           step={inputType === "number" ? step : undefined}
                         />
@@ -480,11 +553,14 @@ export default function ProductUpdatePage() {
                       </div>
                       {spec.code && (
                         <div className="text-xs text-slate-400 mt-1">
-                          Code: <code className="bg-slate-100 px-1 py-0.5 rounded">{spec.code}</code>
+                          Code:{" "}
+                          <code className="bg-slate-100 px-1 py-0.5 rounded">
+                            {spec.code}
+                          </code>
                         </div>
                       )}
                     </Field>
-                  )
+                  );
                 })}
               </div>
             ) : (
@@ -525,5 +601,5 @@ export default function ProductUpdatePage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { useMutation, useQuery } from "@tanstack/react-query"
-import { toast } from "sonner"
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   FiArrowLeft,
   FiPackage,
@@ -10,20 +10,21 @@ import {
   FiBox,
   FiAlertCircle,
   FiCpu,
-  FiInfo
-} from "react-icons/fi"
+  FiInfo,
+} from "react-icons/fi";
 
-import { apiService } from "../../../config/axios"
-import Breadcrumb from "../../../components/ui/Breadcrumb"
-import CategorySelect from "../../../components/ui/select/CategorySelect"
+import { apiService } from "../../../config/axios";
+import Breadcrumb from "../../../components/ui/Breadcrumb";
+import CategorySelect from "../../../components/ui/select/CategorySelect";
+import BrandSelect from "../../../components/ui/select/BrandSelect";
 
 /* =========================
  * STYLES
  * ========================= */
 const inputClass =
-  "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all"
+  "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all";
 
-const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600"
+const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600";
 
 /* =========================
  * FIELD COMPONENT
@@ -42,7 +43,7 @@ const Field = ({ label, error, required = false, children }) => (
       </div>
     )}
   </div>
-)
+);
 
 /* =========================
  * SECTION COMPONENT
@@ -57,32 +58,34 @@ const Section = ({ title, icon: Icon, children }) => (
     </div>
     <div className="p-6">{children}</div>
   </div>
-)
+);
 
 /* =========================
  * MAIN PAGE
  * ========================= */
 export default function ProductCreatePage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     name: "",
     sku: "",
     categoryId: "",
+    brandId: "",
     price: 0,
-    stockQty: 0,
+    stock: 0,
+    warrantyMonth: 0,
     status: 0,
     description: "",
-    specValues: []
-  })
+    specValues: [],
+  });
 
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState({});
 
   const setField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => ({ ...prev, [key]: value }));
     // Clear error khi user nhập
-    setErrors((prev) => ({ ...prev, [key]: null }))
-  }
+    setErrors((prev) => ({ ...prev, [key]: null }));
+  };
 
   /* =========================
    * FETCH CATEGORIES
@@ -90,13 +93,30 @@ export default function ProductCreatePage() {
   const { data: categoriesData } = useQuery({
     queryKey: ["categories-all"],
     queryFn: async () => {
-      const res = await apiService.get("/category")
+      const res = await apiService.get("/category");
+      return res?.statusCode === 200 ? res.value?.items || [] : [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categories = categoriesData || [];
+
+  /* =========================
+  * FETCH BRANDS
+  * ========================= */
+  const { data: brandsData } = useQuery({
+    queryKey: ["brands"],
+    queryFn: async () => {
+      const res = await apiService.get("/brand", {
+        pageNumber: 1,
+        pageSize: 100,
+      })
       return res?.statusCode === 200 ? res.value?.items || [] : []
     },
     staleTime: 5 * 60 * 1000,
   })
 
-  const categories = categoriesData || []
+  const brands = brandsData || []
 
   /* =========================
    * FETCH SPEC DEFINITIONS (khi đã chọn category)
@@ -104,16 +124,18 @@ export default function ProductCreatePage() {
   const { data: specsData, isLoading: specsLoading } = useQuery({
     queryKey: ["spec-definitions", form.categoryId],
     queryFn: async () => {
-      if (!form.categoryId) return []
-      
-      const res = await apiService.get(`/specdefinition/category/${form.categoryId}`)
-      return res?.statusCode === 200 ? res.value?.items || [] : []
+      if (!form.categoryId) return [];
+
+      const res = await apiService.get(
+        `/specdefinition/category/${form.categoryId}`,
+      );
+      return res?.statusCode === 200 ? res.value?.items || [] : [];
     },
     enabled: !!form.categoryId,
     staleTime: 5 * 60 * 1000,
-  })
+  });
 
-  const specDefinitions = specsData || []
+  const specDefinitions = specsData || [];
 
   /* =========================
    * RESET SPECS khi đổi category
@@ -121,68 +143,74 @@ export default function ProductCreatePage() {
   useEffect(() => {
     if (form.categoryId) {
       // Reset spec values khi đổi category
-      setForm((prev) => ({ ...prev, specValues: [] }))
+      setForm((prev) => ({ ...prev, specValues: [] }));
     }
-  }, [form.categoryId])
+  }, [form.categoryId]);
 
   /* =========================
    * UPDATE SPEC VALUE
    * ========================= */
   const updateSpecValue = (specDefId, value) => {
     setForm((prev) => {
-      const existing = prev.specValues.find(s => s.specDefinitionId === specDefId)
-      
+      const existing = prev.specValues.find(
+        (s) => s.specDefinitionId === specDefId,
+      );
+
       if (existing) {
         // Update existing
         return {
           ...prev,
-          specValues: prev.specValues.map(s =>
-            s.specDefinitionId === specDefId
-              ? { ...s, value }
-              : s
-          )
-        }
+          specValues: prev.specValues.map((s) =>
+            s.specDefinitionId === specDefId ? { ...s, value } : s,
+          ),
+        };
       } else {
         // Add new
         return {
           ...prev,
-          specValues: [...prev.specValues, { specDefinitionId: specDefId, value }]
-        }
+          specValues: [
+            ...prev.specValues,
+            { specDefinitionId: specDefId, value },
+          ],
+        };
       }
-    })
-  }
+    });
+  };
 
   const getSpecValue = (specDefId) => {
-    const spec = form.specValues.find(s => s.specDefinitionId === specDefId)
-    return spec?.value || ""
-  }
+    const spec = form.specValues.find((s) => s.specDefinitionId === specDefId);
+    return spec?.value || "";
+  };
 
   /* =========================
    * VALIDATION
    * ========================= */
   const validate = () => {
-    const newErrors = {}
+    const newErrors = {};
 
     // Required fields
-    if (!form.name?.trim()) newErrors.name = "Tên sản phẩm là bắt buộc"
-    if (!form.sku?.trim()) newErrors.sku = "SKU là bắt buộc"
-    if (!form.categoryId) newErrors.categoryId = "Vui lòng chọn danh mục"
-    if (form.price <= 0) newErrors.price = "Giá phải lớn hơn 0"
-    if (form.stockQty < 0) newErrors.stockQty = "Số lượng không được âm"
+    if (!form.name?.trim()) newErrors.name = "Tên sản phẩm là bắt buộc";
+    if (!form.sku?.trim()) newErrors.sku = "SKU là bắt buộc";
+    if (!form.categoryId) newErrors.categoryId = "Vui lòng chọn danh mục";
+    if (form.price <= 0) newErrors.price = "Giá phải lớn hơn 0";
+    if (form.stock < 0) newErrors.stock = "Số lượng không được âm";
+    if (!form.brandId) newErrors.brandId = "Vui lòng chọn thương hiệu";
+    if (form.warrantyMonth < 0)
+      newErrors.warrantyMonth = "Thời gian bảo hành không hợp lệ";
 
     // Validate required specs
-    specDefinitions.forEach(spec => {
+    specDefinitions.forEach((spec) => {
       if (spec.isRequired) {
-        const value = getSpecValue(spec.id)
+        const value = getSpecValue(spec.id);
         if (!value?.trim()) {
-          newErrors[`spec_${spec.id}`] = `${spec.name} là bắt buộc`
+          newErrors[`spec_${spec.id}`] = `${spec.name} là bắt buộc`;
         }
       }
-    })
+    });
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   /* =========================
    * CREATE MUTATION
@@ -193,41 +221,43 @@ export default function ProductCreatePage() {
         name: form.name.trim(),
         sku: form.sku.trim(),
         categoryId: form.categoryId,
+        brandId: form.brandId,
         price: Number(form.price),
-        stockQty: Number(form.stockQty),
+        stock: Number(form.stock),
+        warrantyMonth: Number(form.warrantyMonth),
         status: Number(form.status),
         description: form.description.trim(),
         images: [], // Không thêm ảnh lúc create
-        specValues: form.specValues.filter(s => s.value?.trim()) // Chỉ gửi specs có giá trị
-      }
+        specValues: form.specValues.filter((s) => s.value?.trim()), // Chỉ gửi specs có giá trị
+      };
 
-      const res = await apiService.post("/product/create-product", payload)
+      const res = await apiService.post("/product/create-product", payload);
 
       if (res?.statusCode !== 201 && res?.statusCode !== 200) {
-        throw new Error(res?.message || "Tạo sản phẩm thất bại")
+        throw new Error(res?.message || "Tạo sản phẩm thất bại");
       }
 
-      return res.value
+      return res.value;
     },
     onSuccess: (product) => {
-      toast.success("Tạo sản phẩm thành công")
-      navigate(`/admin/products/${product.id}`)
+      toast.success("Tạo sản phẩm thành công");
+      navigate(`/admin/products/${product.id}`);
     },
     onError: (err) => {
-      toast.error(err?.message || "Tạo sản phẩm thất bại")
-    }
-  })
+      toast.error(err?.message || "Tạo sản phẩm thất bại");
+    },
+  });
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     if (!validate()) {
-      toast.error("Vui lòng kiểm tra lại thông tin")
-      return
+      toast.error("Vui lòng kiểm tra lại thông tin");
+      return;
     }
 
-    createMutation.mutate()
-  }
+    createMutation.mutate();
+  };
 
   /* =========================
    * RENDER
@@ -240,7 +270,7 @@ export default function ProductCreatePage() {
           items={[
             { label: "Trang chủ", href: "/admin" },
             { label: "Quản lý sản phẩm", href: "/admin/products" },
-            { label: "Tạo mới" }
+            { label: "Tạo mới" },
           ]}
         />
 
@@ -269,7 +299,10 @@ export default function ProductCreatePage() {
             {/* Name */}
             <Field label="Tên sản phẩm" error={errors.name} required>
               <div className="relative">
-                <FiPackage className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiPackage
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="text"
                   value={form.name}
@@ -283,7 +316,10 @@ export default function ProductCreatePage() {
             {/* SKU */}
             <Field label="SKU" error={errors.sku} required>
               <div className="relative">
-                <FiTag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiTag
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="text"
                   value={form.sku}
@@ -304,6 +340,16 @@ export default function ProductCreatePage() {
               />
             </Field>
 
+            {/* Brand */}
+            <Field label="Thương hiệu" error={errors.brandId} required>
+              <BrandSelect
+                value={form.brandId}
+                onChange={(id) => setField("brandId", id)}
+                brands={brands}
+                placeholder="Chọn thương hiệu"
+              />
+            </Field>
+
             {/* Status */}
             <Field label="Trạng thái" required>
               <select
@@ -319,7 +365,10 @@ export default function ProductCreatePage() {
             {/* Price */}
             <Field label="Giá (VNĐ)" error={errors.price} required>
               <div className="relative">
-                <FiDollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiDollarSign
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="number"
                   value={form.price}
@@ -333,18 +382,32 @@ export default function ProductCreatePage() {
             </Field>
 
             {/* Stock Qty */}
-            <Field label="Số lượng tồn kho" error={errors.stockQty} required>
+            <Field label="Số lượng tồn kho" error={errors.stock} required>
               <div className="relative">
-                <FiBox className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiBox
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={16}
+                />
                 <input
                   type="number"
-                  value={form.stockQty}
-                  onChange={(e) => setField("stockQty", e.target.value)}
+                  value={form.stock}
+                  onChange={(e) => setField("stock", e.target.value)}
                   className={`${inputClass} pl-10`}
                   placeholder="VD: 30"
                   min="0"
                 />
               </div>
+            </Field>
+            {/* Warranty Month */}
+            <Field label="Bảo hành (tháng)" error={errors.warrantyMonth}>
+              <input
+                type="number"
+                min="0"
+                value={form.warrantyMonth}
+                onChange={(e) => setField("warrantyMonth", e.target.value)}
+                className={inputClass}
+                placeholder="VD: 12"
+              />
             </Field>
 
             {/* Description */}
@@ -371,12 +434,13 @@ export default function ProductCreatePage() {
             ) : specDefinitions.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {specDefinitions.map((spec) => {
-                  const inputType = 
-                    spec.acceptValueType === "Number" || spec.acceptValueType === "Decimal"
+                  const inputType =
+                    spec.acceptValueType === "Number" ||
+                      spec.acceptValueType === "Decimal"
                       ? "number"
-                      : "text"
-                  
-                  const step = spec.acceptValueType === "Decimal" ? "0.1" : "1"
+                      : "text";
+
+                  const step = spec.acceptValueType === "Decimal" ? "0.1" : "1";
 
                   return (
                     <Field
@@ -386,12 +450,17 @@ export default function ProductCreatePage() {
                       required={spec.isRequired}
                     >
                       <div className="relative">
-                        <FiCpu className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <FiCpu
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                          size={16}
+                        />
                         <input
                           type={inputType}
                           value={getSpecValue(spec.id)}
-                          onChange={(e) => updateSpecValue(spec.id, e.target.value)}
-                          className={`${inputClass} pl-10 ${spec.unit ? 'pr-16' : ''}`}
+                          onChange={(e) =>
+                            updateSpecValue(spec.id, e.target.value)
+                          }
+                          className={`${inputClass} pl-10 ${spec.unit ? "pr-16" : ""}`}
                           placeholder={spec.description || spec.name}
                           step={inputType === "number" ? step : undefined}
                         />
@@ -403,11 +472,14 @@ export default function ProductCreatePage() {
                       </div>
                       {spec.code && (
                         <div className="text-xs text-slate-400 mt-1">
-                          Code: <code className="bg-slate-100 px-1 py-0.5 rounded">{spec.code}</code>
+                          Code:{" "}
+                          <code className="bg-slate-100 px-1 py-0.5 rounded">
+                            {spec.code}
+                          </code>
                         </div>
                       )}
                     </Field>
-                  )
+                  );
                 })}
               </div>
             ) : (
@@ -448,5 +520,5 @@ export default function ProductCreatePage() {
         </div>
       </form>
     </div>
-  )
+  );
 }
