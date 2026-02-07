@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { queryClient } from "../../../../config/queryClient";
 import { toast } from "sonner";
 import { FiImage, FiUpload, FiTrash2 } from "react-icons/fi";
@@ -16,7 +17,7 @@ import {
  * ========================= */
 export default function ProductImagesTab({ product }) {
   const [uploading, setUploading] = useState(false);
-
+  const navigate = useNavigate();
   if (!product) return null;
 
   const productId = product.id;
@@ -49,10 +50,12 @@ export default function ProductImagesTab({ product }) {
       return uploadedUrls;
     },
     onSuccess: async () => {
-      toast.success("Thêm ảnh thành công");
-      await queryClient.refetchQueries({
+      toast.success("upload ảnh thành công");
+      await queryClient.invalidateQueries({
         queryKey: ["product-detail", productId],
       });
+      navigate(`/admin/products/${productId}?tab=images`);
+      navigate(0);
     },
     onError: (err) => {
       toast.error(err?.message || "Upload ảnh thất bại");
@@ -66,6 +69,7 @@ export default function ProductImagesTab({ product }) {
     mutationFn: async (imageUrl) => {
       // 1. Delete from Firebase
       await deleteProductImage({ imageUrl });
+      // Note: Không cần xoá file trên Firebase để tránh lỗi không tìm thấy file(đang fix cu)
 
       // 2. Update product images in backend
       const currentImages = product.thumbnailUrl || [];
@@ -80,11 +84,13 @@ export default function ProductImagesTab({ product }) {
         throw new Error(res?.message || "Cập nhật ảnh thất bại");
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Đã xóa ảnh");
-      queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["product-detail", productId],
       });
+      navigate(`/admin/products/${productId}?tab=images`);
+      navigate(0);
     },
     onError: (err) => {
       toast.error(err?.message || "Xóa ảnh thất bại");
