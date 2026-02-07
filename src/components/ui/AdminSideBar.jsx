@@ -9,7 +9,8 @@ import {
   ChevronRight,
   X,
   PcCase,
-  ChartBarStacked
+  ChartBarStacked,
+  Bandage
 } from 'lucide-react'
 
 /* =========================
@@ -118,8 +119,15 @@ export default function AdminSideBar({ open, onClose }) {
             Dashboard
           </SideLink>
           
-          <div>
+          {/* Categories side bar */}
+          <div className="pt-2">
             <SideLink to="/admin/categories" icon={ChartBarStacked} onClick={onClose}>Danh mục sản phẩm</SideLink>
+          </div>
+
+          <div className="pt-2">
+            <SideLink to="/admin/brands" icon={Bandage} onClick={onClose}>
+              Thương hiệu
+            </SideLink>
           </div>
           {/* Management */}
           <div className="pt-2">
