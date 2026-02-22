@@ -1,208 +1,512 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { cartService } from "../../services/cartService";
+
+const CART_STORAGE_KEY = "techexpress_cart_v1";
 
 const initialState = {
-  items: [], // Array of cart items
-  // Each item structure:
-  // {
-  //   id: productDetailId (variant ID),
-  //   productId: product.id,
-  //   name: product.name,
-  //   price: product.price,
-  //   image: product.thumbnail,
-  //   color: selectedColor,
-  //   size: selectedSize,
-  //   quantity: number,
-  //   stock: available stock
-  // }
+  items: [],
+  initialized: false,
+  source: "local",
+  loading: false,
+  actionLoading: {
+    add: false,
+    update: false,
+    remove: false,
+    clear: false,
+  },
+  error: null,
+  lastSyncedAt: null,
 };
 
-const cartSlice = createSlice({
-  name: 'cart',
-  initialState,
-  reducers: {
-    /**
-     * Add item to cart
-     * Matches by ProductDetail ID (variant: size + color combination)
-     */
-    addToCart: (state, action) => {
-      const product = action.payload;
-      console.log('Adding to cart:', product);
-      
-      // Validate required fields
-      if (!product.id || !product.name || product.price === undefined) {
-        console.error('Invalid product data:', product);
-        return;
-      }
+function normalizeServerItem(item) {
+  const productStatus = item?.productStatus || null;
+  const parsedStock =
+    item?.availableStock === null || item?.availableStock === undefined
+      ? null
+      : Math.max(Number(item.availableStock) || 0, 0);
+  const availableStock =
+    parsedStock === 0 && productStatus === "Available" ? null : parsedStock;
+  const rawQuantity = Math.max(Number(item?.quantity) || 0, 0);
+  const quantity = rawQuantity;
+  const unitPrice = Number(item?.unitPrice) || 0;
+  const fallbackSubTotal = unitPrice * quantity;
+  const subTotal = Number(item?.subTotal) > 0 ? Number(item.subTotal) : fallbackSubTotal;
 
-      // Find existing item by ProductDetail ID (id = productDetailId)
-      const existing = state.items.find((item) => item.id === product.id);
+  return {
+    key: item?.id || item?.productId,
+    serverItemId: item?.id || null,
+    productId: item?.productId || "",
+    productName: item?.productName || "",
+    productImage: item?.productImage || "",
+    quantity,
+    unitPrice,
+    subTotal,
+    availableStock,
+    productStatus,
+  };
+}
 
-      if (existing) {
-        // Check stock limit
-        const newQuantity = existing.quantity + (product.quantity || 1);
-        const maxStock = product.stock || existing.stock || 999;
-        
-        if (newQuantity <= maxStock) {
-          existing.quantity = newQuantity;
-        } else {
-          // Don't add more than stock allows
-          existing.quantity = maxStock;
-          console.warn(`Cannot add more. Max stock: ${maxStock}`);
+function normalizeLocalItem(item) {
+  const quantity = Math.max(Number(item?.quantity) || 1, 1);
+  const unitPrice = Number(item?.unitPrice ?? item?.price) || 0;
+  const availableStock =
+    item?.availableStock === null || item?.availableStock === undefined
+      ? null
+      : Math.max(Number(item.availableStock) || 0, 0);
+
+  return {
+    key:
+      item?.key ||
+      item?.productId ||
+      item?.id ||
+      `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    serverItemId: null,
+    productId: item?.productId || item?.id || "",
+    productName: item?.productName || item?.name || "",
+    productImage: item?.productImage || item?.image || "",
+    quantity,
+    unitPrice,
+    subTotal: unitPrice * quantity,
+    availableStock,
+    productStatus: item?.productStatus || "Available",
+  };
+}
+
+function readCartFromStorage() {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeLocalItem);
+  } catch (error) {
+    console.warn("Failed to read cart storage:", error);
+    return [];
+  }
+}
+
+function writeCartToStorage(items) {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  } catch (error) {
+    console.warn("Failed to write cart storage:", error);
+  }
+}
+
+function removeCartStorage() {
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Failed to clear cart storage:", error);
+  }
+}
+
+function mergeLocalCartWithServer(localItems, serverItems) {
+  const mergedMap = new Map();
+
+  for (const item of serverItems) {
+    mergedMap.set(item.productId, item);
+  }
+
+  for (const localItem of localItems) {
+    const existed = mergedMap.get(localItem.productId);
+    if (!existed) {
+      mergedMap.set(localItem.productId, {
+        ...localItem,
+        serverItemId: null,
+      });
+      continue;
+    }
+
+    const nextQuantity = (existed.quantity || 0) + (localItem.quantity || 0);
+    mergedMap.set(localItem.productId, {
+      ...existed,
+      quantity: nextQuantity,
+      subTotal: (existed.unitPrice || 0) * nextQuantity,
+    });
+  }
+
+  return Array.from(mergedMap.values());
+}
+
+export const bootstrapCart = createAsyncThunk(
+  "cart/bootstrap",
+  async ({ isAuthenticated } = {}, { rejectWithValue }) => {
+    try {
+      const localItems = readCartFromStorage();
+      return {
+        isAuthenticated: !!isAuthenticated,
+        localItems,
+      };
+    } catch (error) {
+      return rejectWithValue(error?.message || "Bootstrap cart failed");
+    }
+  }
+);
+
+export const fetchCartItems = createAsyncThunk(
+  "cart/fetchItems",
+  async (_, { rejectWithValue }) => {
+    const response = await cartService.getItems();
+    if (!response.succeeded) {
+      return rejectWithValue(response.message || "Failed to fetch cart items");
+    }
+
+    return (response.value || []).map(normalizeServerItem);
+  }
+);
+
+export const syncCartAfterLogin = createAsyncThunk(
+  "cart/syncAfterLogin",
+  async (_, { rejectWithValue }) => {
+    const serverResponse = await cartService.getItems();
+    if (!serverResponse.succeeded) {
+      return rejectWithValue(serverResponse.message || "Failed to fetch server cart");
+    }
+
+    const serverItems = (serverResponse.value || []).map(normalizeServerItem);
+    const localItems = readCartFromStorage();
+
+    if (localItems.length === 0) {
+      return serverItems;
+    }
+
+    const mergedItems = mergeLocalCartWithServer(localItems, serverItems);
+
+    for (const item of mergedItems) {
+      if (item.serverItemId) {
+        const updateRes = await cartService.updateItem(item.serverItemId, {
+          quantity: item.quantity,
+        });
+        if (!updateRes.succeeded) {
+          return rejectWithValue(updateRes.message || "Failed to sync cart item");
         }
       } else {
-        // Add new item
-        state.items.push({
-          id: product.id,                           // ProductDetail ID
-          productId: product.productId,             // Parent Product ID
-          name: product.name,
-          price: product.price,
-          image: product.image || product.thumbnail,
-          color: product.color || '',
-          size: product.size || '',
-          quantity: product.quantity || 1,
-          stock: product.stock || 999
+        const createRes = await cartService.addItem({
+          productId: item.productId,
+          quantity: item.quantity,
         });
-      }
-    },
-
-    /**
-     * Remove item from cart by index
-     */
-    removeFromCart: (state, action) => {
-      const index = action.payload;
-      if (index >= 0 && index < state.items.length) {
-        state.items.splice(index, 1);
-      }
-    },
-
-    /**
-     * Remove item from cart by ProductDetail ID
-     */
-    removeFromCartById: (state, action) => {
-      const productDetailId = action.payload;
-      state.items = state.items.filter((item) => item.id !== productDetailId);
-    },
-
-    /**
-     * Update quantity by index
-     */
-    updateQuantity: (state, action) => {
-      const { index, quantity } = action.payload;
-      
-      if (index >= 0 && index < state.items.length) {
-        const item = state.items[index];
-        const maxStock = item.stock || 999;
-        
-        if (quantity > 0 && quantity <= maxStock) {
-          item.quantity = quantity;
-        } else if (quantity > maxStock) {
-          item.quantity = maxStock;
-          console.warn(`Quantity limited to stock: ${maxStock}`);
-        } else if (quantity <= 0) {
-          // Remove item if quantity is 0
-          state.items.splice(index, 1);
+        if (!createRes.succeeded) {
+          return rejectWithValue(createRes.message || "Failed to sync local item");
         }
       }
-    },
+    }
 
-    /**
-     * Update quantity by ProductDetail ID
-     */
-    updateQuantityById: (state, action) => {
-      const { id, quantity } = action.payload;
-      const item = state.items.find((item) => item.id === id);
-      
-      if (item) {
-        const maxStock = item.stock || 999;
-        
-        if (quantity > 0 && quantity <= maxStock) {
-          item.quantity = quantity;
-        } else if (quantity > maxStock) {
-          item.quantity = maxStock;
-          console.warn(`Quantity limited to stock: ${maxStock}`);
-        } else if (quantity <= 0) {
-          // Remove item if quantity is 0
-          state.items = state.items.filter((i) => i.id !== id);
-        }
+    const latestServerResponse = await cartService.getItems();
+    if (!latestServerResponse.succeeded) {
+      return rejectWithValue(latestServerResponse.message || "Failed to refresh cart");
+    }
+
+    removeCartStorage();
+    return (latestServerResponse.value || []).map(normalizeServerItem);
+  }
+);
+
+export const addCartItem = createAsyncThunk(
+  "cart/addItem",
+  async ({ productId, quantity = 1, meta, isAuthenticated }, { getState, rejectWithValue }) => {
+    if (!productId) {
+      return rejectWithValue("Missing productId");
+    }
+
+    if (!isAuthenticated) {
+      if (!meta?.productName || meta?.unitPrice === undefined) {
+        return rejectWithValue("Missing product info for local cart");
       }
-    },
 
-    /**
-     * Increment quantity
-     */
-    incrementQuantity: (state, action) => {
-      const index = action.payload;
-      
-      if (index >= 0 && index < state.items.length) {
-        const item = state.items[index];
-        const maxStock = item.stock || 999;
-        
-        if (item.quantity < maxStock) {
-          item.quantity += 1;
-        }
+      const currentItems = getState().cart.items || [];
+      const existed = currentItems.find((item) => item.productId === productId);
+      let nextItems;
+
+      if (existed) {
+        nextItems = currentItems.map((item) => {
+          if (item.productId !== productId) return item;
+          const nextQuantity = item.quantity + quantity;
+          return {
+            ...item,
+            quantity: nextQuantity,
+            subTotal: item.unitPrice * nextQuantity,
+          };
+        });
+      } else {
+        nextItems = [
+          ...currentItems,
+          normalizeLocalItem({
+            productId,
+            quantity,
+            productName: meta.productName,
+            productImage: meta.productImage,
+            unitPrice: meta.unitPrice,
+            availableStock: meta.availableStock,
+            productStatus: meta.productStatus || "Available",
+          }),
+        ];
       }
-    },
 
-    /**
-     * Decrement quantity
-     */
-    decrementQuantity: (state, action) => {
-      const index = action.payload;
-      
-      if (index >= 0 && index < state.items.length) {
-        const item = state.items[index];
-        
-        if (item.quantity > 1) {
-          item.quantity -= 1;
-        } else {
-          // Remove item if quantity becomes 0
-          state.items.splice(index, 1);
-        }
-      }
-    },
+      writeCartToStorage(nextItems);
+      return {
+        mode: "local",
+        items: nextItems,
+      };
+    }
 
-    /**
-     * Clear entire cart
-     */
-    clearCart: (state) => {
-      state.items = [];
-    },
+    const createRes = await cartService.addItem({ productId, quantity });
+    if (!createRes.succeeded) {
+      return rejectWithValue(createRes.message || "Failed to add cart item");
+    }
 
-    /**
-     * Update stock for an item (after fetching latest data)
-     */
-    updateStock: (state, action) => {
-      const { id, stock } = action.payload;
-      const item = state.items.find((item) => item.id === id);
-      
-      if (item) {
-        item.stock = stock;
-        // Adjust quantity if it exceeds new stock
-        if (item.quantity > stock) {
-          item.quantity = stock;
-        }
-      }
-    },
+    const latest = await cartService.getItems();
+    if (!latest.succeeded) {
+      return rejectWithValue(latest.message || "Failed to refresh cart");
+    }
+
+    return {
+      mode: "server",
+      items: (latest.value || []).map(normalizeServerItem),
+    };
+  }
+);
+
+export const changeCartItemQuantity = createAsyncThunk(
+  "cart/changeQuantity",
+  async ({ serverItemId, productId, quantity, isAuthenticated }, { getState, rejectWithValue }) => {
+    const safeQuantity = Math.max(Number(quantity) || 0, 0);
+
+    if (!isAuthenticated) {
+      const currentItems = getState().cart.items || [];
+      const nextItems =
+        safeQuantity <= 0
+          ? currentItems.filter((item) => item.productId !== productId)
+          : currentItems.map((item) => {
+              if (item.productId !== productId) return item;
+              return {
+                ...item,
+                quantity: safeQuantity,
+                subTotal: item.unitPrice * safeQuantity,
+              };
+            });
+
+      writeCartToStorage(nextItems);
+      return {
+        mode: "local",
+        items: nextItems,
+      };
+    }
+
+    if (!serverItemId) {
+      return rejectWithValue("Missing serverItemId");
+    }
+
+    const response =
+      safeQuantity <= 0
+        ? await cartService.removeItem(serverItemId)
+        : await cartService.updateItem(serverItemId, { quantity: safeQuantity });
+
+    if (!response.succeeded) {
+      return rejectWithValue(response.message || "Failed to update quantity");
+    }
+
+    const latest = await cartService.getItems();
+    if (!latest.succeeded) {
+      return rejectWithValue(latest.message || "Failed to refresh cart");
+    }
+
+    return {
+      mode: "server",
+      items: (latest.value || []).map(normalizeServerItem),
+    };
+  }
+);
+
+export const removeCartItem = createAsyncThunk(
+  "cart/removeItem",
+  async ({ serverItemId, productId, isAuthenticated }, { getState, rejectWithValue }) => {
+    if (!isAuthenticated) {
+      const currentItems = getState().cart.items || [];
+      const nextItems = currentItems.filter((item) => item.productId !== productId);
+      writeCartToStorage(nextItems);
+      return {
+        mode: "local",
+        items: nextItems,
+      };
+    }
+
+    if (!serverItemId) {
+      return rejectWithValue("Missing serverItemId");
+    }
+
+    const response = await cartService.removeItem(serverItemId);
+    if (!response.succeeded) {
+      return rejectWithValue(response.message || "Failed to remove cart item");
+    }
+
+    const latest = await cartService.getItems();
+    if (!latest.succeeded) {
+      return rejectWithValue(latest.message || "Failed to refresh cart");
+    }
+
+    return {
+      mode: "server",
+      items: (latest.value || []).map(normalizeServerItem),
+    };
+  }
+);
+
+export const clearCartItems = createAsyncThunk(
+  "cart/clearItems",
+  async ({ isAuthenticated }, { rejectWithValue }) => {
+    if (!isAuthenticated) {
+      removeCartStorage();
+      return {
+        mode: "local",
+        items: [],
+      };
+    }
+
+    const response = await cartService.clearCart();
+    if (!response.succeeded) {
+      return rejectWithValue(response.message || "Failed to clear cart");
+    }
+
+    return {
+      mode: "server",
+      items: [],
+    };
+  }
+);
+
+function setItemsFromPayload(state, action) {
+  state.items = action.payload?.items || [];
+  state.source = action.payload?.mode || state.source;
+  state.error = null;
+  state.lastSyncedAt = new Date().toISOString();
+}
+
+const cartSlice = createSlice({
+  name: "cart",
+  initialState,
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(bootstrapCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(bootstrapCart.fulfilled, (state, action) => {
+        state.loading = false;
+        state.initialized = true;
+        state.items = action.payload.localItems || [];
+        state.source = action.payload.isAuthenticated ? "server" : "local";
+        state.error = null;
+      })
+      .addCase(bootstrapCart.rejected, (state, action) => {
+        state.loading = false;
+        state.initialized = true;
+        state.error = action.payload || action.error.message || "Bootstrap cart failed";
+      })
+      .addCase(fetchCartItems.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchCartItems.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload || [];
+        state.source = "server";
+        state.lastSyncedAt = new Date().toISOString();
+        state.error = null;
+      })
+      .addCase(fetchCartItems.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || action.error.message || "Failed to fetch cart";
+      })
+      .addCase(syncCartAfterLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(syncCartAfterLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = action.payload || [];
+        state.source = "server";
+        state.lastSyncedAt = new Date().toISOString();
+        state.error = null;
+      })
+      .addCase(syncCartAfterLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || action.error.message || "Failed to sync cart";
+      })
+      .addCase(addCartItem.pending, (state) => {
+        state.actionLoading.add = true;
+        state.error = null;
+      })
+      .addCase(addCartItem.fulfilled, (state, action) => {
+        state.actionLoading.add = false;
+        setItemsFromPayload(state, action);
+      })
+      .addCase(addCartItem.rejected, (state, action) => {
+        state.actionLoading.add = false;
+        state.error = action.payload || action.error.message || "Failed to add item";
+      })
+      .addCase(changeCartItemQuantity.pending, (state) => {
+        state.actionLoading.update = true;
+        state.error = null;
+      })
+      .addCase(changeCartItemQuantity.fulfilled, (state, action) => {
+        state.actionLoading.update = false;
+        setItemsFromPayload(state, action);
+      })
+      .addCase(changeCartItemQuantity.rejected, (state, action) => {
+        state.actionLoading.update = false;
+        state.error = action.payload || action.error.message || "Failed to update quantity";
+      })
+      .addCase(removeCartItem.pending, (state) => {
+        state.actionLoading.remove = true;
+        state.error = null;
+      })
+      .addCase(removeCartItem.fulfilled, (state, action) => {
+        state.actionLoading.remove = false;
+        setItemsFromPayload(state, action);
+      })
+      .addCase(removeCartItem.rejected, (state, action) => {
+        state.actionLoading.remove = false;
+        state.error = action.payload || action.error.message || "Failed to remove item";
+      })
+      .addCase(clearCartItems.pending, (state) => {
+        state.actionLoading.clear = true;
+        state.error = null;
+      })
+      .addCase(clearCartItems.fulfilled, (state, action) => {
+        state.actionLoading.clear = false;
+        setItemsFromPayload(state, action);
+      })
+      .addCase(clearCartItems.rejected, (state, action) => {
+        state.actionLoading.clear = false;
+        state.error = action.payload || action.error.message || "Failed to clear cart";
+      });
   },
 });
 
-export const {
-  addToCart,
-  removeFromCart,
-  removeFromCartById,
-  updateQuantity,
-  updateQuantityById,
-  incrementQuantity,
-  decrementQuantity,
-  clearCart,
-  updateStock,
-} = cartSlice.actions;
-
 export default cartSlice.reducer;
 
-// Selectors
 export const selectCartItems = (state) => state.cart.items;
-export const selectCartItemCount = (state) => 
-  state.cart.items.reduce((total, item) => total + item.quantity, 0);
-export const selectCartTotal = (state) =>
-  state.cart.items.reduce((total, item) => total + item.price * item.quantity, 0);
+export const selectCartLoading = (state) => state.cart.loading;
+export const selectCartActionLoading = (state) => state.cart.actionLoading;
+export const selectCartError = (state) => state.cart.error;
+export const selectCartItemCount = (state) =>
+  (state.cart.items || []).reduce((total, item) => total + (item.quantity || 0), 0);
+export const selectCartSubtotal = (state) =>
+  (state.cart.items || []).reduce((total, item) => {
+    const quantity = item.quantity || 0;
+    const unitPrice = item.unitPrice || 0;
+    const subTotal = item.subTotal || unitPrice * quantity;
+    return total + subTotal;
+  }, 0);
+export const selectCartInvalidItems = (state) =>
+  (state.cart.items || []).filter((item) => {
+    const outOfStatus = item.productStatus && item.productStatus !== "Available";
+    const outOfStock = item.availableStock !== null && item.availableStock <= 0;
+    const overStock =
+      item.availableStock !== null && item.quantity > item.availableStock;
+    return outOfStatus || outOfStock || overStock;
+  });
+export const selectCartCanCheckout = (state) =>
+  selectCartItems(state).length > 0 && selectCartInvalidItems(state).length === 0;
