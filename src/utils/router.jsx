@@ -24,6 +24,7 @@ import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
 import HomePage from "../pages/customer/HomePage.jsx";
 import ProductListingPage from "../pages/customer/ProductListingPage.jsx";
+import CartPage from "../pages/customer/CartPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
@@ -37,6 +38,8 @@ export const router = createBrowserRouter([
       { path: "forgot-password", element: <ForgotPasswordPage /> },
       { path: "products", element: <ProductListingPage /> },
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> }
+      { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
+      { path: "cart", element: <CartPage /> }
     ]
   },
   {
