@@ -110,7 +110,7 @@ export default function Header() {
       </div>
 
       <div className="bg-slate-700 hidden lg:block">
-        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center gap-8 text-sm text-white">
+        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-center gap-12  text-sm text-white">
           <NavLink className="hover:text-yellow-400" to="/checkout">
             THANH TOAN
           </NavLink>
