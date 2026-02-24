@@ -1,5 +1,4 @@
 import { NavLink } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import SectionTitle from '../../../components/customer/SectionTitle'
 
 export default function FeaturedCategories({ categories = [], loading = false }) {
@@ -38,15 +37,10 @@ export default function FeaturedCategories({ categories = [], loading = false })
       />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-8">
-        {parentCategories.map((category, index) => (
-          <motion.div
-            key={category.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
+        {parentCategories.map((category) => (
+          <div key={category.id}>
             <NavLink
-              to={`/products?category=${category.id}`}
+              to={`/products?categoryId=${category.id}`}
               className="group block bg-white rounded-xl p-6 text-center shadow-sm hover:shadow-lg border border-slate-100 hover:border-[#0090D0] transition-all"
             >
               {category.imageUrl ? (
@@ -66,7 +60,7 @@ export default function FeaturedCategories({ categories = [], loading = false })
                 {category.name}
               </h3>
             </NavLink>
-          </motion.div>
+          </div>
         ))}
       </div>
     </section>
