@@ -15,19 +15,20 @@ export default function ProductCard({ product, badge, showRank }) {
   const dispatch = useDispatch();
   const { isAuthenticated } = useAuth();
 
-  const isOutOfStock = product.status === "Unavailable" || product.stockQty === 0;
+  const stock = Math.max(Number(product.stockQty ?? product.stock ?? 0) || 0, 0);
+  const isOutOfStock = product.status === "Unavailable" || stock === 0;
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!product?.id) {
-      toast.error("Khong tim thay thong tin san pham");
+      toast.error("Không tìm thấy thông tin sản phẩm");
       return;
     }
 
     if (isOutOfStock) {
-      toast.error("San pham da het hang");
+      toast.error("Sản phẩm đã hết hàng");
       return;
     }
 
@@ -41,22 +42,22 @@ export default function ProductCard({ product, badge, showRank }) {
             productName: product.name,
             productImage: product.firstImageUrl,
             unitPrice: product.price,
-            availableStock: product.stockQty,
+            availableStock: stock,
             productStatus: product.status || "Available",
           },
         })
       ).unwrap();
 
-      toast.success("Da them vao gio hang");
+      toast.success("Đã thêm vào giỏ hàng");
     } catch (error) {
-      toast.error(error || "Khong the them vao gio hang");
+      toast.error(error || "Không thể thêm vào giỏ hàng");
     }
   };
 
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    toast.info("Tinh nang yeu thich se som co");
+    toast.info("Tính năng yêu thích sẽ sớm có");
   };
 
   return (
@@ -91,7 +92,7 @@ export default function ProductCard({ product, badge, showRank }) {
 
         {isOutOfStock && (
           <span className="absolute top-3 right-3 bg-slate-600 text-white text-xs px-2 py-1 rounded">
-            Het hang
+            Hết hàng
           </span>
         )}
 
@@ -102,7 +103,7 @@ export default function ProductCard({ product, badge, showRank }) {
             className="flex-1 bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
           >
             <ShoppingCart size={16} />
-            <span className="hidden sm:inline">Them</span>
+            <span className="hidden sm:inline">Thêm vào giỏ hàng</span>
           </button>
           <button
             onClick={handleWishlist}
@@ -128,8 +129,8 @@ export default function ProductCard({ product, badge, showRank }) {
           <span className="text-lg font-bold text-red-600">{formatPrice(product.price)}</span>
         </div>
 
-        {product.stockQty !== undefined && product.stockQty <= 10 && product.stockQty > 0 && (
-          <div className="text-xs text-orange-600 mt-2">Chi con {product.stockQty} san pham</div>
+        {stock > 0 && stock <= 10 && (
+          <div className="text-xs text-orange-600 mt-2">Chỉ còn {stock} sản phẩm</div>
         )}
       </div>
     </NavLink>
