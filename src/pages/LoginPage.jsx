@@ -1,4 +1,4 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '../store/authContext'
@@ -16,10 +16,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { login } = useAuth()
 
   // ⛳ redirect sau login
-  const from = location.state?.from?.pathname || '/'
+  const from = searchParams.get("redirect") || location.state?.from?.pathname || '/'
 
   /* =======================
    * HANDLERS

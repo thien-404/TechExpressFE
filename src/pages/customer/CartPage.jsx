@@ -40,7 +40,7 @@ export default function CartPage() {
       maxStock === null ? safeQuantity : Math.min(safeQuantity, maxStock);
 
     if (safeQuantity > 0 && maxStock !== null && safeQuantity > maxStock) {
-      toast.warning(`So luong toi da co the mua la ${maxStock}`);
+      toast.warning(`Số lượng tối đa có thể mua là ${maxStock}`);
     }
 
     try {
@@ -91,7 +91,7 @@ export default function CartPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
           <h1 className="text-2xl font-semibold text-slate-800 mb-2">Giỏ hàng trống</h1>
           <p className="text-slate-500 mb-6">
-            bạn chưa có sản phẩm nào trong giỏ hàng.
+            Bạn chưa có sản phẩm nào trong giỏ hàng.
           </p>
           <Link
             to="/"
@@ -122,7 +122,9 @@ export default function CartPage() {
               />
 
               <div className="flex-1">
-                <h2 className="font-semibold text-slate-800">{item.productName}</h2>
+                <Link to={`/products/${item.productId}`}>
+                  <h2 className="font-semibold text-slate-800 hover:text-[#0090D0]">{item.productName}</h2>
+                </Link>
                 <div className="text-sm text-slate-500 mt-1">
                   Đơn giá: {formatPrice(item.unitPrice)}
                 </div>
@@ -197,13 +199,22 @@ export default function CartPage() {
               </div>
             )}
 
-            <button
-              type="button"
-              disabled={!canCheckout}
-              className="w-full h-11 rounded-md bg-green-700 hover:bg-green-800 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Thanh toán
-            </button>
+            {canCheckout ? (
+              <Link
+                to="/checkout"
+                className="inline-flex w-full h-11 items-center justify-center rounded-md bg-green-700 hover:bg-green-800 text-white font-semibold"
+              >
+                Thanh toán
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="w-full h-11 rounded-md bg-green-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Thanh toán
+              </button>
+            )}
 
             <button
               type="button"
@@ -219,3 +230,4 @@ export default function CartPage() {
     </div>
   );
 }
+

@@ -138,7 +138,7 @@ export default function AccountPage() {
       <div className="md:hidden mb-4 bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
         <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
           <img
-            src={form.avatarImage || "/avatar-placeholder.png"}
+            src={form.avatarImage || "/AnonymouseUser.png"}
             alt="avatar"
             className="h-10 w-10 rounded-full object-cover border border-slate-200"
           />
