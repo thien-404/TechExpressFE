@@ -12,10 +12,10 @@ import {
   Star,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiService } from "../../config/axios";
-import { useAuth } from "../../store/authContext";
-import { addCartItem } from "../../store/slices/cartSlice";
-import ProductCard from "../../components/customer/ProductCard";
+import { apiService } from "../../../config/axios";
+import { useAuth } from "../../../store/authContext";
+import { addCartItem } from "../../../store/slices/cartSlice";
+import ProductCard from "../../../components/customer/ProductCard";
 
 function formatPrice(value) {
   return new Intl.NumberFormat("vi-VN", {

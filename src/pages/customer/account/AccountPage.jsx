@@ -1,12 +1,23 @@
-// pages/customer/AccountPage.jsx
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { useAuth } from "../../../store/authContext.jsx";
 import { apiService } from "../../../config/axios";
-
 import AccountSidebar from "../../../components/ui/AccountSideBar.jsx";
 import AccountInfoTab from "./tabs/AccountInfoTab";
+
+const buildUpdatePayload = (source) => ({
+  firstName: source.firstName,
+  lastName: source.lastName,
+  phone: source.phone,
+  gender: source.gender || null,
+  address: source.address,
+  ward: source.ward,
+  province: source.province,
+  postalCode: source.postalCode,
+  avatarImage: source.avatarImage,
+});
 
 export default function AccountPage() {
   const { token, logout } = useAuth();
@@ -24,13 +35,12 @@ export default function AccountPage() {
     ward: "",
     province: "",
     postalCode: "",
-    avatarImage: ""
+    avatarImage: "",
   });
 
-  const setField = (k, v) =>
-    setForm((prev) => ({ ...prev, [k]: v }));
+  const setField = (key, value) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
-  /* ================= GET /user/me ================= */
   const { data: user, isLoading } = useQuery({
     enabled: !!token,
     queryKey: ["user-me"],
@@ -43,42 +53,28 @@ export default function AccountPage() {
     },
   });
 
-    // Cập nhật form khi có dữ liệu user
-    useEffect(() => {
-      if (!user) return;
-      setForm({
-        id: user.id ?? "",
-        firstName: user.firstName ?? "",
-        lastName: user.lastName ?? "",
-        email: user.email ?? "",
-        phone: user.phone ?? "",
-        gender: user.gender ?? null,
-        address: user.address ?? "",
-        ward: user.ward ?? "",
-        province: user.province ?? "",
-        postalCode: user.postalCode ?? "",
-        avatarImage: user.avatarImage ?? ""
-      });
-    }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    setForm({
+      id: user.id ?? "",
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      email: user.email ?? "",
+      phone: user.phone ?? "",
+      gender: user.gender ?? null,
+      address: user.address ?? "",
+      ward: user.ward ?? "",
+      province: user.province ?? "",
+      postalCode: user.postalCode ?? "",
+      avatarImage: user.avatarImage ?? "",
+    });
+  }, [user]);
 
-  /* ================= PUT /user/me ================= */
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      const payload = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        phone: form.phone,
-        gender: form.gender, // Male | Female | Other
-        address: form.address,
-        ward: form.ward,
-        province: form.province,
-        postalCode: form.postalCode,
-        avatarImage: form.avatarImage
-      };
-      console.log("Updating user with payload:", payload);
+  const updateProfileMutation = useMutation({
+    mutationFn: async (payload) => {
       const res = await apiService.put("/user/me", payload);
       if (res?.statusCode !== 200) {
-        throw new Error(res?.message || "Cập nhật thất bại");
+        throw new Error(res?.message || "Cập nhật thông tin thất bại");
       }
       return res;
     },
@@ -87,12 +83,40 @@ export default function AccountPage() {
       queryClient.invalidateQueries({ queryKey: ["user-me"] });
     },
     onError: (err) =>
-      toast.error(err?.message || "Cập nhật thất bại")
+      toast.error(err?.message || "Cập nhật thông tin thất bại"),
   });
 
-  const onSubmit = (e) => {
-    e.preventDefault();
-    updateMutation.mutate();
+  const syncAvatarMutation = useMutation({
+    mutationFn: async (payload) => {
+      const res = await apiService.put("/user/me", payload);
+      if (res?.statusCode !== 200) {
+        throw new Error(res?.message || "Không thể cập nhật ảnh đại diện");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Đã cập nhật ảnh đại diện");
+      queryClient.invalidateQueries({ queryKey: ["user-me"] });
+    },
+    onError: (err) =>
+      toast.error(err?.message || "Cập nhật ảnh đại diện thất bại"),
+  });
+
+  const onSubmit = (event) => {
+    event.preventDefault();
+    updateProfileMutation.mutate(buildUpdatePayload(form));
+  };
+
+  const handleAvatarUploaded = (avatarUrl) => {
+    const previousAvatar = form.avatarImage;
+    const nextForm = { ...form, avatarImage: avatarUrl };
+    setForm(nextForm);
+
+    syncAvatarMutation.mutate(buildUpdatePayload(nextForm), {
+      onError: () => {
+        setForm((prev) => ({ ...prev, avatarImage: previousAvatar }));
+      },
+    });
   };
 
   const onLogout = () => {
@@ -100,26 +124,91 @@ export default function AccountPage() {
     toast.success("Đã đăng xuất");
   };
 
+  const fullName =
+    `${form.firstName || ""} ${form.lastName || ""}`.trim() || "User";
+  const isProfilePending =
+    updateProfileMutation.isPending || syncAvatarMutation.isPending;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="text-sm text-slate-500 mb-4">
-        Trang chủ / Tài khoản
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="hidden md:block text-sm text-slate-500 mb-4">
+        <Link to="/">Trang chủ</Link> / Tài khoản
+      </div>
+
+      <div className="md:hidden mb-4 bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+        <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+          <img
+            src={form.avatarImage || "/avatar-placeholder.png"}
+            alt="avatar"
+            className="h-10 w-10 rounded-full object-cover border border-slate-200"
+          />
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-800 truncate">{fullName}</div>
+            <div className="text-xs text-slate-500 truncate">{form.email || "Chưa có email"}</div>
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("profile")}
+            className={`h-9 rounded-lg text-sm font-medium ${
+              activeTab === "profile"
+                ? "bg-[#0090D0]/10 text-[#0090D0]"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Tài Khoản
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("orders")}
+            className={`h-9 rounded-lg text-sm font-medium ${
+              activeTab === "orders"
+                ? "bg-[#0090D0]/10 text-[#0090D0]"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Đơn mua
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("voucher")}
+            className={`h-9 rounded-lg text-sm font-medium ${
+              activeTab === "voucher"
+                ? "bg-[#0090D0]/10 text-[#0090D0]"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Voucher
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="h-9 rounded-lg text-sm font-medium bg-red-50 text-red-600"
+          >
+            Đăng xuất
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-6">
-        <AccountSidebar
-          user={form}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onLogout={onLogout}
-        />
+        <div className="hidden md:block">
+          <AccountSidebar
+            user={{ ...form, fullName }}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onLogout={onLogout}
+          />
+        </div>
 
         {activeTab === "profile" && (
           <AccountInfoTab
             form={form}
-            loading={isLoading || updateMutation.isPending}
+            loading={isLoading || isProfilePending}
             onChange={setField}
             onSubmit={onSubmit}
+            onAvatarUploaded={handleAvatarUploaded}
+            avatarSyncing={syncAvatarMutation.isPending}
           />
         )}
 
