@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "../../store/authContext";
 import { selectCartItemCount } from "../../store/slices/cartSlice";
 
-export default function Header() {
+export default function Header({ onToggleCategorySidebar }) {
   const { user } = useAuth();
   const itemCount = useSelector(selectCartItemCount);
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export default function Header() {
   const handleSearchSubmit = () => {
     const trimmedKeyword = keyword.trim();
     if (!trimmedKeyword) {
-      toast.info("Vui long nhap tu khoa tim kiem");
+      toast.info("Vui lòng nhập từ khóa tìm kiếm");
       return;
     }
 
@@ -43,7 +43,12 @@ export default function Header() {
         <div className="px-4 py-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button className="text-white" type="button">
+              <button
+                className="text-white"
+                type="button"
+                onClick={onToggleCategorySidebar}
+                aria-label="Toggle category sidebar"
+              >
                 <Menu size={22} />
               </button>
 
@@ -69,7 +74,7 @@ export default function Header() {
           <div className="flex bg-white rounded-sm overflow-hidden">
             <input
               type="text"
-              placeholder="Ban can tim gi?"
+              placeholder="Bạn cần tìm gì?"
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={handleSearchKeyDown}
@@ -102,7 +107,7 @@ export default function Header() {
             <div className="flex bg-white rounded-sm overflow-hidden">
               <input
                 type="text"
-                placeholder="Ban can tim gi?"
+                placeholder="bạn cần tìm gì?"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -149,22 +154,22 @@ export default function Header() {
       <div className="bg-slate-700 hidden lg:block">
         <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-center gap-12  text-sm text-white">
           <NavLink className="hover:text-yellow-400" to="/checkout">
-            THANH TOÁN
+            THANH TOAN
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/installment">
-            TRẢ GÓP
+            TRA GOP
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/contact">
-            LIÊN HỆ
+            LIEN HE
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/support">
-            HỖ TRỢ KHÁCH HÀNG
+            HO TRO KHACH HANG
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/blog">
-            THƯ VIỆN
+            THU VIEN
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/careers">
-            TUYÊN DỤNG
+            TUYEN DUNG
           </NavLink>
         </div>
       </div>
