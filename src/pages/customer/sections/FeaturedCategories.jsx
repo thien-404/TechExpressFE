@@ -40,7 +40,7 @@ export default function FeaturedCategories({ categories = [], loading = false })
         {parentCategories.map((category) => (
           <div key={category.id}>
             <NavLink
-              to={`/products?categoryId=${category.id}`}
+              to={`/products?category=${category.id}`}
               className="group block bg-white rounded-xl p-6 text-center shadow-sm hover:shadow-lg border border-slate-100 hover:border-[#0090D0] transition-all"
             >
               {category.imageUrl ? (

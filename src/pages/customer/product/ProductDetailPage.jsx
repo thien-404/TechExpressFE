@@ -180,19 +180,19 @@ export default function ProductDetailPage() {
       id: "rv-1",
       name: "Nguyen Minh",
       rating: 5,
-      content: "Hieu nang rat manh, choi game 4K muot. Nhiet do van on dinh.",
+      content: "Hiệu năng rất mạnh, chơi game 4K mượt. Nhiệt độ vẫn ổn định.",
     },
     {
       id: "rv-2",
       name: "Tran Anh",
       rating: 4,
-      content: "Build tot, den RGB dep, nhung card kha to nen can case rong.",
+      content: "Build tốt, đèn RGB đẹp, nhưng card khá to nên cần case rộng.",
     },
     {
       id: "rv-3",
       name: "Le Quoc",
       rating: 5,
-      content: "Render va AI workload rat nhanh. Rat dang tien trong phan khuc cao cap.",
+      content: "Render và AI workload rất nhanh. Rất đáng tiền trong phân khúc cao cấp.",
     },
   ];
 
@@ -200,10 +200,10 @@ export default function ProductDetailPage() {
     <div className="max-w-7xl mx-auto px-4 py-6 md:py-8 pb-28 md:pb-8">
       <div className="mb-4">
         <Link to="/" className="text-sm text-[#0090D0] hover:underline">
-          Trang chu
+          Trang chủ
         </Link>
         <span className="mx-2 text-slate-400">/</span>
-        <span className="text-sm text-slate-600">{product.categoryName || "San pham"}</span>
+        <span className="text-sm text-slate-600">{product.categoryName || "Sản phẩm"}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -300,7 +300,7 @@ export default function ProductDetailPage() {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span>SKU: {product.sku || "-"}</span>
               <span className="text-slate-300">|</span>
-              <span>{product.categoryName || "Khong ro danh muc"}</span>
+              <span>{product.categoryName || "Không rõ danh mục"}</span>
             </div>
 
             <div className="mt-4 flex items-center gap-3">
@@ -310,23 +310,23 @@ export default function ProductDetailPage() {
                   isOutOfStock ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                 }`}
               >
-                {isOutOfStock ? "Het hang" : "Con hang"}
+                {isOutOfStock ? "Hết hàng" : "Còn hàng"}
               </span>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md bg-slate-50 p-3">
-                <div className="text-slate-500">Ton kho</div>
+                <div className="text-slate-500">Tồn kho</div>
                 <div className="font-semibold text-slate-800">{stock}</div>
               </div>
               <div className="rounded-md bg-slate-50 p-3">
-                <div className="text-slate-500">Bao hanh</div>
-                <div className="font-semibold text-slate-800">{product.warrantyMonth || 0} thang</div>
+                <div className="text-slate-500">Bảo hành</div>
+                <div className="font-semibold text-slate-800">{product.warrantyMonth || 0} tháng</div>
               </div>
             </div>
 
             <div className="mt-5">
-              <div className="text-sm font-medium text-slate-700 mb-2">So luong</div>
+              <div className="text-sm font-medium text-slate-700 mb-2">Số lượng</div>
               <div className="inline-flex items-center rounded-md border border-slate-300 overflow-hidden">
                 <button
                   type="button"
@@ -363,7 +363,7 @@ export default function ProductDetailPage() {
               className="hidden md:flex mt-5 w-full h-11 rounded-md bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 text-white font-semibold items-center justify-center gap-2"
             >
               <ShoppingCart size={18} />
-              Them vao gio hang
+              Thêm vào giỏ hàng
             </button>
           </div>
         </div>
@@ -371,19 +371,19 @@ export default function ProductDetailPage() {
 
       <div className="mt-6 space-y-4 md:hidden">
         <SectionAccordion
-          title="Mo ta san pham"
+          title="Mô tả sản phẩm"
           open={openSection === "description"}
           onToggle={() =>
             setOpenSection((prev) => (prev === "description" ? "" : "description"))
           }
         >
           <p className="text-sm text-slate-700 leading-relaxed">
-            {product.description || "Chua co mo ta cho san pham nay."}
+            {product.description || "Chưa có mô tả cho sản phẩm này."}
           </p>
         </SectionAccordion>
 
         <SectionAccordion
-          title="Thong so ky thuat"
+          title="Thông số kỹ thuật"
           open={openSection === "specs"}
           onToggle={() => setOpenSection((prev) => (prev === "specs" ? "" : "specs"))}
         >
@@ -400,12 +400,12 @@ export default function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Chua co thong so ky thuat.</p>
+            <p className="text-sm text-slate-500">Chưa có thông số kỹ thuật.</p>
           )}
         </SectionAccordion>
 
         <SectionAccordion
-          title="Danh gia san pham"
+          title="Đánh giá sản phẩm"
           open={openSection === "reviews"}
           onToggle={() => setOpenSection((prev) => (prev === "reviews" ? "" : "reviews"))}
         >
@@ -419,7 +419,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
             <div className="text-xs font-medium inline-flex px-2 py-1 rounded bg-slate-100 text-slate-600">
-              Chua ket noi API danh gia
+              Chưa kết nối API đánh giá
             </div>
             {mockReviews.map((review) => (
               <div key={review.id} className="rounded-md border border-slate-200 p-3">
@@ -442,14 +442,14 @@ export default function ProductDetailPage() {
 
       <div className="hidden md:block mt-8 space-y-6">
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">Mo ta san pham</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Mô tả sản phẩm</h2>
           <p className="text-sm text-slate-700 leading-relaxed">
-            {product.description || "Chua co mo ta cho san pham nay."}
+            {product.description || "Chưa có mô tả cho sản phẩm này."}
           </p>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">Thong so ky thuat</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Thông số kỹ thuật</h2>
           {(product.specValues || []).length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(product.specValues || []).map((spec) => (
@@ -463,15 +463,15 @@ export default function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Chua co thong so ky thuat.</p>
+            <p className="text-sm text-slate-500">Chưa có thông số kỹ thuật.</p>
           )}
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Danh gia san pham</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Đánh giá sản phẩm</h2>
             <span className="text-xs font-medium inline-flex px-2 py-1 rounded bg-slate-100 text-slate-600">
-              Chua ket noi API danh gia
+              Chưa kết nối API đánh giá
             </span>
           </div>
           <div className="space-y-3">
@@ -498,7 +498,7 @@ export default function ProductDetailPage() {
 
       <section className="mt-8 md:mt-10">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">San pham cung danh muc</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Sản phẩm cùng danh mục</h2>
         </div>
 
         {relatedLoading ? (
@@ -519,7 +519,7 @@ export default function ProductDetailPage() {
           </div>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
-            Chua co san pham lien quan.
+            Chưa có sản phẩm liên quan.
           </div>
         )}
       </section>
@@ -529,7 +529,7 @@ export default function ProductDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="text-base font-bold text-red-600 truncate">{formatPrice(product.price)}</div>
             <div className={`text-xs ${isOutOfStock ? "text-red-600" : "text-green-700"}`}>
-              {isOutOfStock ? "Het hang" : `Con ${stock} san pham`}
+              {isOutOfStock ? "Hết hàng" : `Còn ${stock} sản phẩm`}
             </div>
           </div>
           <button
@@ -539,7 +539,7 @@ export default function ProductDetailPage() {
             className="h-11 px-4 rounded-md bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 text-white font-semibold inline-flex items-center gap-2"
           >
             <ShoppingCart size={17} />
-            Them vao gio
+            Thêm vào giỏ
           </button>
         </div>
       </div>
