@@ -122,7 +122,9 @@ export default function CartPage() {
               />
 
               <div className="flex-1">
-                <h2 className="font-semibold text-slate-800">{item.productName}</h2>
+                <Link to={`/products/${item.productId}`}>
+                  <h2 className="font-semibold text-slate-800 hover:text-[#0090D0]">{item.productName}</h2>
+                </Link>
                 <div className="text-sm text-slate-500 mt-1">
                   Đơn giá: {formatPrice(item.unitPrice)}
                 </div>
