@@ -56,7 +56,7 @@ export default function AccountInfoTab({
 
       <div className="flex items-center gap-3 md:flex-col md:items-center mb-5 md:mb-6">
         <img
-          src={form.avatarImage || "/avatar-placeholder.png"}
+          src={form.avatarImage || "/AnonymouseUser.png"}
           alt="avatar"
           className="h-16 w-16 md:h-20 md:w-20 rounded-full object-cover border"
         />
