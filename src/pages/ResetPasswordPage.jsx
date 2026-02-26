@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import apiService from "../config/axios.js";
+import { apiService } from "../config/axios.js";
 
 export default function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -9,9 +9,9 @@ export default function ResetPasswordPage() {
 
   const [formData, setFormData] = useState({
     email: "",
-    token: "",
+    otp: "",
     newPassword: "",
-    confirmPassword: "",
+    confirmNewPassword: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -19,17 +19,14 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const email = params.get("email") || "";
-    const token = params.get("token") || "";
 
     setFormData((prev) => ({
       ...prev,
       email,
-      token,
     }));
 
-    // Nếu user vào thẳng page mà không có token
-    if (!email || !token) {
-      toast.info("Thiếu email hoặc token. Vui lòng mở link từ email reset password.");
+    if (!email) {
+      toast.info("Vui lòng nhập email.");
     }
   }, [params]);
 
@@ -43,11 +40,16 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     if (loading) return;
 
-    const email = formData.email?.trim();
-    const token = formData.token?.trim();
+    const email = formData.email.trim();
+    const otp = formData.otp.trim();
 
-    if (!email || !token) {
-      toast.error("Thiếu email hoặc token. Hãy mở link từ email reset password.");
+    if (!email) {
+      toast.error("Vui lòng nhập email.");
+      return;
+    }
+
+    if (!otp) {
+      toast.error("Vui lòng nhập OTP.");
       return;
     }
 
@@ -56,32 +58,32 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (formData.newPassword !== formData.confirmPassword) {
+    if (formData.newPassword !== formData.confirmNewPassword) {
       toast.error("Mật khẩu xác nhận không khớp.");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await apiService.post("/auths/reset-password", {
+      const res = await apiService.post("/Auth/forgot-password", {
         email,
-        token,
+        otp,
         newPassword: formData.newPassword,
-        confirmPassword: formData.confirmPassword,
+        confirmNewPassword: formData.confirmNewPassword,
       });
 
-      if (res?.data?.succeeded) {
-        toast.success(res?.data?.message || "Đặt lại mật khẩu thành công!");
+      if (res?.statusCode === 200) {
+        toast.success(res?.message || "Đặt lại mật khẩu thành công!");
         navigate("/login", { replace: true });
         return;
       }
 
-      toast.error(res?.data?.message || "Reset password thất bại.");
+      toast.error(res?.message || "Đặt lại mật khẩu thất bại.");
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
         error?.message ||
-        "Reset password failed. Please try again.";
+        "Đặt lại mật khẩu thất bại. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -90,25 +92,22 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="w-full">
-      {/* Back */}
       <div className="px-6 pt-4">
         <Link
           to="/login"
           className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-black"
         >
-          <span className="text-lg leading-none">‹</span>
+          <span className="text-lg leading-none">&lt;</span>
           <span>Quay lại Đăng nhập</span>
         </Link>
       </div>
 
-      {/* Content */}
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center px-6 pb-16 pt-10">
         <h1 className="mb-10 text-center text-4xl font-light tracking-wide">
           Đặt lại mật khẩu
         </h1>
 
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-5">
-          {/* Email (readonly nếu có từ link) */}
           <div>
             <label className="mb-2 block text-[11px] font-semibold tracking-wider text-gray-700">
               EMAIL:
@@ -125,10 +124,24 @@ export default function ResetPasswordPage() {
             />
           </div>
 
-          {/* Password */}
           <div>
             <label className="mb-2 block text-[11px] font-semibold tracking-wider text-gray-700">
-              MẬT KHẨU MỚI:
+              OTP:
+            </label>
+            <input
+              type="text"
+              value={formData.otp}
+              onChange={handleInputChange("otp")}
+              disabled={loading}
+              className="h-10 w-full border border-gray-300 px-3 text-sm outline-none focus:border-black disabled:bg-gray-50"
+              placeholder="Nhập mã OTP"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-[11px] font-semibold tracking-wider text-gray-700">
+              Mật khẩu mới:
             </label>
 
             <div className="relative">
@@ -138,7 +151,7 @@ export default function ResetPasswordPage() {
                 onChange={handleInputChange("newPassword")}
                 disabled={loading}
                 className="h-10 w-full border border-gray-300 px-3 text-sm outline-none focus:border-black pr-16 disabled:bg-gray-50"
-                placeholder="New password"
+                placeholder="Nhập mật khẩu mới"
                 autoComplete="new-password"
                 required
               />
@@ -154,25 +167,24 @@ export default function ResetPasswordPage() {
             </div>
           </div>
 
-          {/* Confirm */}
           <div>
             <label className="mb-2 block text-[11px] font-semibold tracking-wider text-gray-700">
-              XÁC NHẬN MẬT KHẨU:
+              Xác nhận mật khẩu mới:
             </label>
 
             <input
               type={showPassword ? "text" : "password"}
-              value={formData.confirmPassword}
-              onChange={handleInputChange("confirmPassword")}
+              value={formData.confirmNewPassword}
+              onChange={handleInputChange("confirmNewPassword")}
               disabled={loading}
               className="h-10 w-full border border-gray-300 px-3 text-sm outline-none focus:border-black disabled:bg-gray-50"
-              placeholder="Confirm password"
+              placeholder="Xác nhận mật khẩu mới"
               autoComplete="new-password"
               required
             />
 
             <p className="mt-2 text-[11px] text-gray-600">
-              Link token chỉ dùng được 1 lần. Nếu báo token không hợp lệ, bạn hãy gửi lại yêu cầu “quên mật khẩu”.
+              Mật khẩu phải có ít nhất 8 ký tự, bao gồm ít nhất một chữ cái viết hoa, một chữ cái viết thường, một số và một ký tự đặc biệt.
             </p>
           </div>
 
@@ -180,16 +192,19 @@ export default function ResetPasswordPage() {
             <button
               type="submit"
               disabled={loading}
-              className="h-10 w-full bg-black text-xs font-semibold tracking-wider text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className=" w-full bg-yellow-400 hover:bg-yellow-500
+            text-white font-semibold
+            py-3 rounded-full transition
+            disabled:opacity-60"
             >
-              {loading ? "ĐANG RESET..." : "RESET PASSWORD"}
+              {loading ? "Đang đặt lại..." : "Đặt lại mật khẩu"}
             </button>
 
             <Link
               to="/forgot-password"
               className="block text-center text-[11px] text-gray-700 hover:text-black hover:underline"
             >
-              Gửi lại link reset
+              Gửi lại OTP
             </Link>
           </div>
         </form>
