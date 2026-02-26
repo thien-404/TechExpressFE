@@ -8,6 +8,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import LoginPage from "../pages/LoginPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "../pages/ResetPasswordPage.jsx";
 
 // Admin Pages
 import UserPage from "../pages/admin/Users/UserPage.jsx";
@@ -31,7 +32,6 @@ import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
-
 export const router = createBrowserRouter([
   {
     path: "/", element: <CustomerLayout />, children: [
@@ -39,6 +39,7 @@ export const router = createBrowserRouter([
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
+      { path: "reset-password", element: <ResetPasswordPage /> },
       { path: "products", element: <ProductListingPage /> },
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
       { path: "cart", element: <CartPage /> },

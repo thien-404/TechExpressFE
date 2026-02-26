@@ -1,28 +1,14 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { toast } from 'sonner'
-// import apiService from '../config/axios' // ⛔ BE: dùng khi tích hợp backend
+import { apiService } from '../config/axios'
 
 export default function ForgotPasswordPage() {
-  /* =======================
-   * STATE
-   * ======================= */
+  const navigate = useNavigate()
+
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
-  /* =======================
-   * HANDLERS
-   * ======================= */
-
-  /**
-   * ⛔ BE: FORGOT PASSWORD
-   * - POST /auths/forgot-password
-   * - body: { email }
-   * - response: { succeeded, message }
-   *
-   * ⚠️ Lưu ý:
-   * Backend thường trả OK dù email không tồn tại (security reason)
-   */
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (loading) return
@@ -35,27 +21,17 @@ export default function ForgotPasswordPage() {
 
     setLoading(true)
     try {
-      // ⛔ BE CALL (tạm thời mock)
-      /*
-      const res = await apiService.post('/auths/forgot-password', {
+      const res = await apiService.post('/Auth/forgot-password/request-otp', {
         email: trimmedEmail
       })
 
-      if (res?.data?.succeeded) {
-        toast.success(
-          res?.data?.message ||
-            'Nếu email tồn tại, hệ thống đã gửi link đặt lại mật khẩu.'
-        )
-      } else {
-        toast.error(res?.data?.message || 'Gửi yêu cầu thất bại.')
+      if (res?.statusCode === 200) {
+        toast.success(res?.message || 'Gửi mã OTP thành công.')
+        navigate(`/reset-password?email=${encodeURIComponent(trimmedEmail)}`)
+        return
       }
-      */
 
-      // ✅ MOCK để test UI
-      toast.success(
-        'Nếu email tồn tại, hệ thống đã gửi link đặt lại mật khẩu.'
-      )
-      setEmail('')
+      toast.error(res?.message || 'Gửi yêu cầu thất bại.')
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
@@ -67,41 +43,23 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  /* =======================
-   * RENDER
-   * ======================= */
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      {/* Breadcrumb */}
       <div className="text-sm text-slate-500 mb-8">
-        <NavLink
-          to="/"
-          className="hover:underline hover:text-[#0090D0]"
-        >
-          Trang chủ
+        <NavLink to="/" className="hover:underline hover:text-[#0090D0]">
+          Trang chu
         </NavLink>{' '}
-        / <span className="text-slate-700">Đăng nhập tài khoản</span>
+        / <span className="text-slate-700">Dăng nhập</span>
       </div>
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold text-center mb-2">
-        ĐẶT LẠI MẬT KHẨU
-      </h1>
+      <h1 className="text-2xl font-semibold text-center mb-2">Đặt lại mật khẩu</h1>
       <p className="text-center text-sm text-slate-600 mb-8">
-        Chúng tôi sẽ gửi cho bạn một email để kích hoạt việc đặt lại mật
-        khẩu.
+        Chúng tôi sẽ gửi mã OTP qua email để bạn đặt lại mật khẩu.
       </p>
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-xl mx-auto space-y-5"
-      >
-        {/* Email */}
+      <form onSubmit={handleSubmit} className="max-w-xl mx-auto space-y-5">
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Email
-          </label>
+          <label className="block text-sm font-medium mb-1">Email</label>
           <input
             type="email"
             placeholder="Email"
@@ -117,7 +75,6 @@ export default function ForgotPasswordPage() {
           />
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
@@ -128,25 +85,17 @@ export default function ForgotPasswordPage() {
             disabled:opacity-60
           "
         >
-          {loading ? 'ĐANG GỬI...' : 'Lấy lại mật khẩu'}
+          {loading ? 'Đang gửi...' : 'Lấy lại mật khẩu'}
         </button>
 
-        {/* Back */}
         <div className="text-center text-sm text-slate-600">
-          <NavLink
-            to="/login"
-            className="hover:underline hover:text-[#0090D0]"
-          >
+          <NavLink to="/login" className="hover:underline hover:text-[#0090D0]">
             Quay lại
           </NavLink>
         </div>
 
-        {/* Divider */}
-        <div className="text-center text-sm text-slate-500 pt-6">
-          Hoặc đăng nhập bằng
-        </div>
+        <div className="text-center text-sm text-slate-500 pt-6">Hoặc đăng nhập bằng</div>
 
-        {/* Social login */}
         <div className="flex gap-3 justify-center pt-2">
           <button
             type="button"
