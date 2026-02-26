@@ -231,7 +231,7 @@ export default function ProductCreatePage() {
         specValues: form.specValues.filter((s) => s.value?.trim()), // Chỉ gửi specs có giá trị
       };
 
-      const res = await apiService.post("/product/create-product", payload);
+      const res = await apiService.post("/product", payload);
 
       if (res?.statusCode !== 201 && res?.statusCode !== 200) {
         throw new Error(res?.message || "Tạo sản phẩm thất bại");

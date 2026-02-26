@@ -470,7 +470,7 @@ export default function CheckoutPage() {
             <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
               <h2 className="text-lg font-semibold text-slate-900">3. Thông tin vận chuyển</h2>
               <p className="mt-2 text-sm text-slate-500">
-                Miễn phí cho đơn từ 300.000đ; giao thứ 2 - thứ 7 trong giờ hành chính.
+                Giao thứ 2 - thứ 7 trong giờ hành chính.
               </p>
 
               <div className="mt-4 space-y-2">
@@ -612,12 +612,12 @@ export default function CheckoutPage() {
                 <span>{formatPrice(subtotal)}</span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
-                <span>Phí vận chuyển</span>
-                <span>{formatPrice(shippingFee)}</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-600">
                 <span>Thuế VAT (10%)</span>
                 <span>{formatPrice(tax)}</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-600">
+                <span>Phí vận chuyển</span>
+                <span>{formatPrice(shippingFee)}</span>
               </div>
               <div className="border-t border-slate-200 pt-2 text-base font-semibold text-slate-900">
                 <div className="flex items-center justify-between">

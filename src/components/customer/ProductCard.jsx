@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Heart, ShoppingCart, Package } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -14,6 +15,7 @@ const formatPrice = (price) =>
 export default function ProductCard({ product, badge, showRank }) {
   const dispatch = useDispatch();
   const { isAuthenticated } = useAuth();
+  const [hovered, setHovered] = useState(false);
 
   const stock = Math.max(Number(product.stockQty ?? product.stock ?? 0) || 0, 0);
   const isOutOfStock = product.status === "Unavailable" || stock === 0;
@@ -64,13 +66,16 @@ export default function ProductCard({ product, badge, showRank }) {
     <NavLink
       to={`/products/${product.id}`}
       className="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg border border-slate-100 hover:border-[#0090D0]/30 transition-all"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div className="relative aspect-square bg-slate-50 overflow-hidden">
         {product.firstImageUrl ? (
           <img
             src={product.firstImageUrl}
             alt={product.name}
-            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain transition-transform duration-300"
+            style={{ transform: hovered ? "scale(1.05)" : "scale(1)" }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -96,14 +101,21 @@ export default function ProductCard({ product, badge, showRank }) {
           </span>
         )}
 
-        <div className="absolute bottom-3 left-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Desktop: hiện khi hover | Mobile: luôn hiện ở dưới cùng */}
+        <div
+          className="absolute bottom-3 left-3 right-3 flex gap-2 transition-opacity duration-200 sm:pointer-events-none"
+          style={{
+            opacity: hovered ? 1 : 0,
+            pointerEvents: hovered ? "auto" : "none",
+          }}
+        >
           <button
             onClick={handleAddToCart}
             disabled={isOutOfStock}
             className="flex-1 bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
           >
             <ShoppingCart size={16} />
-            <span className="hidden sm:inline">Thêm vào giỏ hàng</span>
+            <span>Thêm vào giỏ</span>
           </button>
           <button
             onClick={handleWishlist}
@@ -121,12 +133,33 @@ export default function ProductCard({ product, badge, showRank }) {
           </div>
         )}
 
-        <h3 className="font-semibold text-slate-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-[#0090D0] transition-colors">
+        <h3
+          className="font-semibold mb-2 line-clamp-2 min-h-[2.5rem] transition-colors"
+          style={{ color: hovered ? "#0090D0" : "#1e293b" }}
+        >
           {product.name}
         </h3>
 
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-red-600">{formatPrice(product.price)}</span>
+        </div>
+
+        {/* Mobile: nút thêm vào giỏ cố định dưới giá */}
+        <div className="flex gap-2 mt-3 sm:hidden">
+          <button
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+            className="flex-1 bg-[#0090D0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
+          >
+            <ShoppingCart size={16} />
+            <span>{isOutOfStock ? "Hết hàng" : ""}</span>
+          </button>
+          <button
+            onClick={handleWishlist}
+            className="bg-slate-100 text-slate-600 p-2 rounded-lg border border-slate-200"
+          >
+            <Heart size={14} />
+          </button>
         </div>
 
         {stock > 0 && stock <= 10 && (
