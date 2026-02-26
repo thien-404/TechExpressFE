@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -29,6 +29,7 @@ const PAYMENT_OPTION = {
   COD: "COD",
   INSTALLMENT: "INSTALLMENT",
 };
+const ONLINE_PAYMENT_METHOD = 1;
 
 const SHIPPING_FEE_THRESHOLD = 300000;
 const SHIPPING_FEE = 30000;
@@ -132,12 +133,14 @@ function buildPaymentTag(paymentOption) {
 export default function CheckoutPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading, logout } = useAuth();
   const items = useSelector(selectCartItems);
   const subtotal = useSelector(selectCartSubtotal);
   const invalidItems = useSelector(selectCartInvalidItems);
   const canCheckout = useSelector(selectCartCanCheckout);
   const didPrefillRef = useRef(false);
+  const isPaymentReturn = searchParams.get("paymentReturn") === "1";
 
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
@@ -232,6 +235,10 @@ export default function CheckoutPage() {
       ...prev,
       deliveryType: nextType,
       pickupStoreId: nextType === DeliveryType.Shipping ? "" : prev.pickupStoreId,
+      paymentOption:
+        nextType === DeliveryType.Shipping && prev.paymentOption === PAYMENT_OPTION.COD
+          ? PAYMENT_OPTION.QR
+          : prev.paymentOption,
     }));
     setErrors((prev) => ({
       ...prev,
@@ -312,6 +319,14 @@ export default function CheckoutPage() {
       notes: notesText,
     };
 
+    const clearCartSafely = async () => {
+      try {
+        await dispatch(clearCartItems({ isAuthenticated })).unwrap();
+      } catch (error) {
+        console.error("Failed to clear cart after checkout", error);
+      }
+    };
+
     setSubmitting(true);
     try {
       const response = isAuthenticated
@@ -331,7 +346,32 @@ export default function CheckoutPage() {
         throw new Error(response.message || "Không thể tạo đơn hàng");
       }
 
-      await dispatch(clearCartItems({ isAuthenticated })).unwrap();
+      const orderId = response.value?.id;
+      if (!orderId) {
+        throw new Error("Tạo đơn hàng thành công nhưng không nhận được mã đơn");
+      }
+
+      if (form.paymentOption === PAYMENT_OPTION.QR) {
+        const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
+        const initResponse = await orderService.initOnlinePayment(orderId, {
+          method: ONLINE_PAYMENT_METHOD,
+          returnUrl,
+        });
+        const paymentRedirectUrl = initResponse?.value?.url;
+
+        if (!initResponse.succeeded || !paymentRedirectUrl) {
+          await clearCartSafely();
+          toast.error("Đơn hàng đã được tạo nhưng chưa khởi tạo được thanh toán online");
+          navigate("/");
+          return;
+        }
+
+        await clearCartSafely();
+        window.location.assign(paymentRedirectUrl);
+        return;
+      }
+
+      await clearCartSafely();
       toast.success("Đặt hàng thành công");
       navigate("/");
     } catch (error) {
@@ -340,6 +380,27 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   };
+
+  if (isPaymentReturn) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
+          <h1 className="mb-2 text-2xl font-semibold text-slate-900">
+            Bạn đã quay lại từ cổng thanh toán
+          </h1>
+          <p className="mb-6 text-slate-500">
+            Đơn hàng đang được xử lý. Bạn có thể quay về trang chủ để tiếp tục mua sắm.
+          </p>
+          <Link
+            to="/"
+            className="inline-flex h-10 items-center rounded-md bg-[#0090D0] px-5 font-medium text-white hover:bg-[#0077B0]"
+          >
+            Về trang chủ
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -550,14 +611,16 @@ export default function CheckoutPage() {
                 />
                 <span className="text-sm text-slate-800">Chuyển khoản mã QR</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3">
-                <input
-                  type="radio"
-                  checked={form.paymentOption === PAYMENT_OPTION.COD}
-                  onChange={() => handlePaymentChange(PAYMENT_OPTION.COD)}
-                />
-                <span className="text-sm text-slate-800">Thanh toán khi giao hàng</span>
-              </label>
+              {form.deliveryType === DeliveryType.PickUp && (
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3">
+                  <input
+                    type="radio"
+                    checked={form.paymentOption === PAYMENT_OPTION.COD}
+                    onChange={() => handlePaymentChange(PAYMENT_OPTION.COD)}
+                  />
+                  <span className="text-sm text-slate-800">Thanh toán khi nhận hàng</span>
+                </label>
+              )}
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3">
                 <input
                   type="radio"
