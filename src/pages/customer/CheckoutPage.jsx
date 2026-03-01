@@ -31,7 +31,6 @@ const PAYMENT_OPTION = {
 };
 const ONLINE_PAYMENT_METHOD = 1;
 
-const SHIPPING_FEE_THRESHOLD = 300000;
 const SHIPPING_FEE = 30000;
 const INSTALLMENT_OPTIONS = [6, 12];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -357,7 +356,7 @@ export default function CheckoutPage() {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
         });
-        const paymentRedirectUrl = initResponse?.value?.url;
+        const paymentRedirectUrl = initResponse?.value?.redirectUrl;
 
         if (!initResponse.succeeded || !paymentRedirectUrl) {
           await clearCartSafely();
