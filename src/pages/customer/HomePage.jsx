@@ -51,12 +51,13 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ['products-bestsellers'],
     queryFn: async () => {
-      const res = await apiService.get('/product', {
+      const res = await apiService.get('/product/top-selling', {
         Page: 1,
         PageSize: 8,
         Status: 0, // Available
         SortBy: 0, // Price
-        SortDirection: 1 // Descending
+        SortDirection: 1, // Descending
+        count: 8
       })
       if (res?.statusCode === 200) {
         return res.value?.items || []
@@ -82,9 +83,10 @@ export default function HomePage() {
 
       <PromoBanner />
 
+      {/*Tạm để new product để UI hiển thị */}
       <BestSellers
-        products={bestSellers}
-        loading={bestSellersLoading}
+        products={newProducts}
+        loading={newProductsLoading}
       />
 
       <WhyChooseUs />

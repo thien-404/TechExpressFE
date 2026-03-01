@@ -210,38 +210,38 @@ export default function ProductUpdatePage() {
     return spec?.value || "";
   };
 
-  /* =========================
-   * IMAGE UPLOAD
-   * ========================= */
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  // /* =========================
+  //  * IMAGE UPLOAD
+  //  * ========================= */
+  // const handleImageUpload = async (e) => {
+  //   const files = Array.from(e.target.files || []);
+  //   if (files.length === 0) return;
 
-    try {
-      setUploading(true);
+  //   try {
+  //     setUploading(true);
 
-      // TODO: Implement actual image upload
-      // const uploadedUrls = await uploadProductImages(files, productId)
+  //     // TODO: Implement actual image upload
+  //     // const uploadedUrls = await uploadProductImages(files, productId)
 
-      toast.info("Tính năng upload ảnh đang phát triển");
+  //     toast.info("Tính năng upload ảnh đang phát triển");
 
-      // setForm(prev => ({
-      //   ...prev,
-      //   images: [...prev.images, ...uploadedUrls]
-      // }))
-    } catch (error) {
-      toast.error("Upload ảnh thất bại");
-    } finally {
-      setUploading(false);
-    }
-  };
+  //     // setForm(prev => ({
+  //     //   ...prev,
+  //     //   images: [...prev.images, ...uploadedUrls]
+  //     // }))
+  //   } catch (error) {
+  //     toast.error("Upload ảnh thất bại");
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
 
-  const handleRemoveImage = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
-  };
+  // const handleRemoveImage = (index) => {
+  //   setForm((prev) => ({
+  //     ...prev,
+  //     images: prev.images.filter((_, i) => i !== index),
+  //   }));
+  // };
 
   /* =========================
    * VALIDATION

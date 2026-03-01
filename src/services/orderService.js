@@ -22,5 +22,10 @@ export const orderService = {
     const response = await apiService.post("/Order/member-checkout", payload);
     return normalizeEnvelope(response);
   },
+
+  async initOnlinePayment(orderId, payload) {
+    const response = await apiService.post(`/payments/orders/${orderId}/online/init`, payload);
+    return normalizeEnvelope(response);
+  },
 };
 
