@@ -13,6 +13,16 @@ function normalizeEnvelope(response) {
 }
 
 export const orderService = {
+  async getOrders(params = {}) {
+    const response = await apiService.get("/Order", params);
+    return normalizeEnvelope(response);
+  },
+
+  async getOrderDetail(orderId) {
+    const response = await apiService.get(`/Order/getOrderDetail/${orderId}`);
+    return normalizeEnvelope(response);
+  },
+
   async guestCheckout(payload) {
     const response = await apiService.post("/Order/guest-checkout", payload);
     return normalizeEnvelope(response);
