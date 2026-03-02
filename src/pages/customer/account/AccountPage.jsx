@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../store/authContext.jsx";
 import { apiService } from "../../../config/axios";
 import AccountSidebar from "../../../components/ui/AccountSideBar.jsx";
 import AccountInfoTab from "./tabs/AccountInfoTab";
+import OrderTab from "./tabs/OrderTab";
+import OrderDetailTab from "./tabs/OrderDetailTab";
 
 const buildUpdatePayload = (source) => ({
   firstName: source.firstName,
@@ -19,10 +21,20 @@ const buildUpdatePayload = (source) => ({
   avatarImage: source.avatarImage,
 });
 
+const VALID_TABS = new Set(["profile", "orders", "voucher"]);
+
+const normalizeTab = (value) => {
+  const tab = String(value || "").toLowerCase().trim();
+  if (VALID_TABS.has(tab)) return tab;
+  return "profile";
+};
+
 export default function AccountPage() {
   const { token, logout } = useAuth();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("profile");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = normalizeTab(searchParams.get("tab"));
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   const [form, setForm] = useState({
     id: "",
@@ -124,13 +136,33 @@ export default function AccountPage() {
     toast.success("Đã đăng xuất");
   };
 
+  const handleTabChange = (tab) => {
+    const nextTab = normalizeTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (nextTab === "profile") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", nextTab);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+    setSelectedOrderId(null);
+  };
+
+  useEffect(() => {
+    if (activeTab !== "orders" && selectedOrderId) {
+      setSelectedOrderId(null);
+    }
+  }, [activeTab, selectedOrderId]);
+
   const fullName =
     `${form.firstName || ""} ${form.lastName || ""}`.trim() || "User";
   const isProfilePending =
     updateProfileMutation.isPending || syncAvatarMutation.isPending;
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
       <div className="hidden md:block text-sm text-slate-500 mb-4">
         <Link to="/">Trang chủ</Link> / Tài khoản
       </div>
@@ -150,7 +182,7 @@ export default function AccountPage() {
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setActiveTab("profile")}
+            onClick={() => handleTabChange("profile")}
             className={`h-9 rounded-lg text-sm font-medium ${
               activeTab === "profile"
                 ? "bg-[#0090D0]/10 text-[#0090D0]"
@@ -161,7 +193,7 @@ export default function AccountPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("orders")}
+            onClick={() => handleTabChange("orders")}
             className={`h-9 rounded-lg text-sm font-medium ${
               activeTab === "orders"
                 ? "bg-[#0090D0]/10 text-[#0090D0]"
@@ -172,7 +204,7 @@ export default function AccountPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("voucher")}
+            onClick={() => handleTabChange("voucher")}
             className={`h-9 rounded-lg text-sm font-medium ${
               activeTab === "voucher"
                 ? "bg-[#0090D0]/10 text-[#0090D0]"
@@ -191,12 +223,12 @@ export default function AccountPage() {
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <div className="hidden md:block">
+      <div className="flex gap-6 min-w-0">
+        <div className="hidden md:block shrink-0">
           <AccountSidebar
             user={{ ...form, fullName }}
             activeTab={activeTab}
-            onTabChange={setActiveTab}
+            onTabChange={handleTabChange}
             onLogout={onLogout}
           />
         </div>
@@ -212,8 +244,16 @@ export default function AccountPage() {
           />
         )}
 
-        {activeTab !== "profile" && (
-          <div className="flex-1 bg-white rounded-lg p-6 text-sm text-slate-500">
+        {activeTab === "orders" && !selectedOrderId && (
+          <OrderTab customerId={form.id || undefined} onViewDetail={setSelectedOrderId} />
+        )}
+
+        {activeTab === "orders" && selectedOrderId && (
+          <OrderDetailTab orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />
+        )}
+
+        {activeTab === "voucher" && (
+          <div className="flex-1 min-w-0 bg-white rounded-lg p-6 text-sm text-slate-500">
             Tab này sẽ làm sau
           </div>
         )}
