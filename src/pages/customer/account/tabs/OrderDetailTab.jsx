@@ -123,6 +123,13 @@ function canShowPayButton(orderDetail) {
   return payableByOrder || payableInstallment;
 }
 
+function getPayableInstallmentId(orderDetail) {
+  if (!orderDetail) return null;
+  const installments = orderDetail.installments || [];
+  const payableInstallment = installments.find(isInstallmentInPaymentWindow);
+  return payableInstallment?.id || null;
+}
+
 export default function OrderDetailTab({ orderId, onBack }) {
   const {
     data: order,
@@ -150,11 +157,25 @@ export default function OrderDetailTab({ orderId, onBack }) {
       if (!order?.id) {
         throw new Error("Không tìm thấy mã đơn để thanh toán");
       }
-      const returnUrl = `${window.location.origin}/account`;
-      const response = await orderService.initOnlinePayment(order.id, {
-        method: ONLINE_PAYMENT_METHOD,
-        returnUrl,
-      });
+      const payableInstallmentId = getPayableInstallmentId(order);
+      const isInstallmentOrder =
+        normalizeKey(order?.paidType) === "installment" || (order?.installments || []).length > 0;
+      let response;
+      const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
+      if (payableInstallmentId) {
+        response = await orderService.initInstallmentOnlinePayment(payableInstallmentId, {
+          method: ONLINE_PAYMENT_METHOD,
+          returnUrl
+        });
+      } else if (isInstallmentOrder) {
+        throw new Error("Không tìm thấy kỳ trả góp nào đang trong thời hạn thanh toán");
+      } else {
+        
+        response = await orderService.initOnlinePayment(order.id, {
+          method: ONLINE_PAYMENT_METHOD,
+          returnUrl,
+        });
+      }
 
       if (!response.succeeded) {
         throw new Error(response.message || "Không thể khởi tạo thanh toán online");

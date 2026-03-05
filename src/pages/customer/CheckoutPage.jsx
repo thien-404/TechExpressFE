@@ -440,15 +440,44 @@ export default function CheckoutPage() {
         throw new Error("Tạo đơn hàng thành công nhưng không nhận được mã đơn");
       }
 
-      if (form.paymentOption === PAYMENT_OPTION.QR) {
-        const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
-        const initResponse = await orderService.initOnlinePayment(orderId, {
-          method: ONLINE_PAYMENT_METHOD,
-          returnUrl,
-        });
+      if (
+        form.paymentOption === PAYMENT_OPTION.QR ||
+        form.paymentOption === PAYMENT_OPTION.INSTALLMENT
+      ) {
+        let initResponse;
+
+        if (form.paymentOption === PAYMENT_OPTION.QR) {
+          const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
+          initResponse = await orderService.initOnlinePayment(orderId, {
+            method: ONLINE_PAYMENT_METHOD,
+            returnUrl,
+          });
+        } else {
+          let installmentId =
+            response.value?.installments?.[0]?.id || response.value?.firstInstallmentId;
+
+          if (!installmentId) {
+            const orderDetailResponse = await orderService.getOrderDetail(orderId);
+            if (orderDetailResponse.succeeded) {
+              installmentId = orderDetailResponse.value?.installments?.[0]?.id;
+            }
+          }
+
+          if (!installmentId) {
+            await clearCartSafely();
+            toast.error("Đơn hàng đã được tạo nhưng chưa xác định được kỳ trả góp đầu tiên");
+            navigate("/");
+            return;
+          }
+
+          initResponse = await orderService.initInstallmentOnlinePayment(installmentId, {
+            method: ONLINE_PAYMENT_METHOD,
+          });
+        }
+
         const paymentRedirectUrl = initResponse?.value?.redirectUrl;
 
-        if (!initResponse.succeeded || !paymentRedirectUrl) {
+        if (!initResponse?.succeeded || !paymentRedirectUrl) {
           await clearCartSafely();
           toast.error("Đơn hàng đã được tạo nhưng chưa khởi tạo được thanh toán online");
           navigate("/");
