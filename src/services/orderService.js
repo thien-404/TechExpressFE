@@ -37,5 +37,12 @@ export const orderService = {
     const response = await apiService.post(`/payments/orders/${orderId}/online/init`, payload);
     return normalizeEnvelope(response);
   },
-};
 
+  async initInstallmentOnlinePayment(installmentId, payload) {
+    const response = await apiService.post(
+      `/payments/installments/${installmentId}/online/init`,
+      payload
+    );
+    return normalizeEnvelope(response);
+  },
+};
