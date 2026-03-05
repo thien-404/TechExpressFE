@@ -140,9 +140,22 @@ export default function CheckoutPage() {
   const canCheckout = useSelector(selectCartCanCheckout);
   const didPrefillRef = useRef(false);
   const isPaymentReturn = searchParams.get("paymentReturn") === "1";
+  const orderCode = searchParams.get("orderCode") || "";
+  const paymentLinkId = searchParams.get("id") || "";
+  const paymentStatus = searchParams.get("status") || "";
+  const isCanceled = searchParams.get("cancel") === "true";
+
+  const useBackendReturnCancel =
+    import.meta.env.VITE_USE_BACKEND_RETURN_CANCEL !== "0";
 
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [paymentReturnState, setPaymentReturnState] = useState({
+    handling: false,
+    handled: false,
+    ok: null,
+    message: "",
+  });
   const [form, setForm] = useState({
     receiverFullName: "",
     receiverEmail: "",
@@ -167,6 +180,83 @@ export default function CheckoutPage() {
       return res.value;
     },
   });
+
+  useEffect(() => {
+    if (!isPaymentReturn) return;
+    if (!orderCode && !paymentLinkId) return;
+
+    const isSuccessStatus = paymentStatus === "PAID" && !isCanceled;
+
+    const handleWithoutBackend = () => {
+      setPaymentReturnState({
+        handling: false,
+        handled: true,
+        ok: isSuccessStatus,
+        message: isSuccessStatus
+          ? "Thanh toán thành công. Đơn hàng của bạn đang được xử lý."
+          : "Thanh toán thất bại hoặc đã bị hủy. Nếu tiền đã bị trừ, vui lòng liên hệ hỗ trợ.",
+      });
+    };
+
+    const run = async () => {
+      setPaymentReturnState({
+        handling: true,
+        handled: false,
+        ok: null,
+        message: "Đang xác nhận thanh toán...",
+      });
+
+      if (!useBackendReturnCancel) {
+        handleWithoutBackend();
+        return;
+      }
+
+      try {
+        const targetOrderCode = orderCode || paymentLinkId;
+        const endpoint = isSuccessStatus
+          ? "/payments/payos/return"
+          : "/payments/payos/cancel";
+
+        const response = await apiService.get(endpoint, {
+           orderCode: targetOrderCode ,
+        });
+
+        const data = response?.data ?? response;
+
+        const ok = !!data?.value?.ok;
+        const message =
+          data?.message ||
+          (ok
+            ? "Thanh toán thành công. Đơn hàng của bạn đang được xử lý."
+            : "Thanh toán thất bại hoặc đã bị hủy. Nếu tiền đã bị trừ, vui lòng liên hệ hỗ trợ.");
+
+        setPaymentReturnState({
+          handling: false,
+          handled: true,
+          ok,
+          message,
+        });
+      } catch (error) {
+        setPaymentReturnState({
+          handling: false,
+          handled: true,
+          ok: false,
+          message:
+            error?.message ||
+            "Không thể xác nhận trạng thái thanh toán. Nếu tiền đã bị trừ, vui lòng liên hệ hỗ trợ.",
+        });
+      }
+    };
+
+    run();
+  }, [
+    isPaymentReturn,
+    orderCode,
+    paymentLinkId,
+    paymentStatus,
+    isCanceled,
+    useBackendReturnCancel,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -381,21 +471,48 @@ export default function CheckoutPage() {
   };
 
   if (isPaymentReturn) {
+    const { handling, handled, ok, message } = paymentReturnState;
+
+    const title = handling
+      ? "Đang xác nhận thanh toán..."
+      : ok === true
+      ? "Thanh toán thành công"
+      : ok === false
+      ? "Thanh toán thất bại"
+      : "Kết quả thanh toán";
+
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
           <h1 className="mb-2 text-2xl font-semibold text-slate-900">
-            Bạn đã quay lại từ cổng thanh toán
+            {title}
           </h1>
           <p className="mb-6 text-slate-500">
-            Đơn hàng đang được xử lý. Bạn có thể quay về trang chủ để tiếp tục mua sắm.
+            {message ||
+              "Đang xử lý thông tin thanh toán của bạn. Vui lòng chờ trong giây lát."}
           </p>
-          <Link
-            to="/"
-            className="inline-flex h-10 items-center rounded-md bg-[#0090D0] px-5 font-medium text-white hover:bg-[#0077B0]"
-          >
-            Về trang chủ
-          </Link>
+
+          {handling && !handled && (
+            <div className="mb-6 text-sm text-slate-500">
+              Vui lòng không tắt trình duyệt trong khi hệ thống đang xác nhận thanh toán.
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/"
+              className="inline-flex h-10 items-center rounded-md bg-[#0090D0] px-5 text-sm font-medium text-white hover:bg-[#0077B0]"
+            >
+              Về trang chủ
+            </Link>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex h-10 items-center rounded-md border border-slate-300 px-5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Tải lại trang
+            </button>
+          </div>
         </div>
       </div>
     );
