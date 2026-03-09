@@ -8,6 +8,7 @@ import {
   CheckCircle2, RefreshCw, Search, Inbox, FileText
 } from 'lucide-react'
 import Breadcrumb from '../../../components/ui/Breadcrumb'
+import Pagination from '../../../components/common/Pagination'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -479,17 +480,28 @@ export default function AdminChatPage() {
   const [tab, setTab] = useState('open')         // 'open' | 'closed'
   const [selectedSession, setSelectedSession] = useState(null)
   const [search, setSearch] = useState('')
+  const [pageNumber, setPageNumber] = useState(0)
+  const PAGE_SIZE = 20
   const connectionRef = useRef(null)
 
   // Fetch session list
-  const { data: sessions = [], isLoading, refetch } = useQuery({
-    queryKey: ['admin-chat-sessions', tab],
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['admin-chat-sessions', tab, pageNumber],
     queryFn: async () => {
-      const res = await apiService.get('/Chat/sessions', { isClosed: tab === 'closed' })
-      return res.value ?? []
+      const res = await apiService.get('/Chat/sessions', {
+        isClosed: tab === 'closed',
+        pageNumber,
+        pageSize: PAGE_SIZE,
+      })
+      const value = res.value
+      return value ?? { items: [], pageNumber: 0, pageSize: PAGE_SIZE, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false }
     },
     staleTime: 30_000,
   })
+
+  const sessions = data?.items ?? []
+  const totalItems = data?.totalCount ?? 0
+  const totalPages = data?.totalPages ?? 1
 
   // Shared SignalR connection (listens for NewChatSession)
   useEffect(() => {
@@ -510,6 +522,7 @@ export default function AdminChatPage() {
       if (cancelled) return
       queryClient.invalidateQueries({ queryKey: ['admin-chat-sessions', 'open'] })
       toast.info('Có phiên hỗ trợ mới', { duration: 3000 })
+      setPageNumber(0)
     })
 
     connection
@@ -536,6 +549,12 @@ export default function AdminChatPage() {
     setSelectedSession(s)
   }
 
+  const handleTabChange = (key) => {
+    setTab(key)
+    setSelectedSession(null)
+    setPageNumber(0)
+  }
+
   const filtered = sessions.filter((s) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
@@ -553,7 +572,7 @@ export default function AdminChatPage() {
           <div>
             <h1 className="text-2xl font-semibold text-[#334155]">Hỗ trợ khách hàng</h1>
             <p className="text-sm text-slate-500 mt-1">
-              <span className="font-semibold text-blue-600">{filtered.length}</span> phiên {tab === 'open' ? 'đang mở' : 'đã đóng'}
+              <span className="font-semibold text-blue-600">{totalItems}</span> phiên {tab === 'open' ? 'đang mở' : 'đã đóng'}
             </p>
           </div>
           <button
@@ -579,7 +598,7 @@ export default function AdminChatPage() {
             ].map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => { setTab(key); setSelectedSession(null) }}
+                onClick={() => handleTabChange(key)}
                 className={`flex-1 py-3 text-sm font-medium transition-colors
                   ${tab === key
                     ? 'text-[#0090D0] border-b-2 border-[#0090D0]'
@@ -625,6 +644,20 @@ export default function AdminChatPage() {
               ))
             )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex-shrink-0 border-t border-slate-100">
+              <Pagination
+                pageNumber={pageNumber}
+                pageSize={PAGE_SIZE}
+                totalItems={totalItems}
+                totalPages={totalPages}
+                loading={isLoading}
+                onPageChange={setPageNumber}
+              />
+            </div>
+          )}
         </div>
 
         {/* Right — chat panel */}
