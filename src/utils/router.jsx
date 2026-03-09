@@ -22,6 +22,7 @@ import ProductCreatePage from "../pages/admin/Product/ProductCreatePage.jsx";
 import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 import OrderPage from "../pages/admin/Order/OrderPage.jsx";
 import OrderDetailPage from "../pages/admin/Order/OrderDetailPage.jsx";
+import AdminChatPage from "../pages/admin/Chat/AdminChatPage.jsx";
 
 //Customer Pages
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
       { path: "products/:productId/edit", element: <ProductUpdatePage /> },
       { path: "orders", element: <OrderPage /> },
       { path: "orders/:orderId", element: <OrderDetailPage /> },
+      { path: "chat", element: <AdminChatPage /> },
     ]
   }
 ]);
