@@ -8,8 +8,6 @@ import NewArrivals from './sections/NewArrivals'
 import PromoBanner from './sections/PromoBanner'
 import BestSellers from './sections/BestSellers'
 import WhyChooseUs from './sections/WhyChooseUs'
-import ChatWidget from '../../components/common/ChatWidget'
-
 export default function HomePage() {
   // Fetch categories
   const {
@@ -91,8 +89,6 @@ export default function HomePage() {
       />
 
       <WhyChooseUs />
-
-      <ChatWidget />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
-import { AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, User, Phone, ChevronDown, Loader2, Paperclip, FileText } from 'lucide-react'
 import { useAuth } from '../../store/authContext'
 import { decodeToken } from '../../utils/jwt'
@@ -139,7 +139,7 @@ function getMediaType(file) {
   return 'File'
 }
 
-function ChatArea({ displayName, sessionId, phone, onMinimize }) {
+function ChatArea({ displayName, sessionId, phone, onMinimize, onSessionInvalid }) {
   // Decode user ID directly from the current token in localStorage so it stays
   // accurate even after a silent token refresh (which updates localStorage but
   // may not immediately update the AuthContext user state).
@@ -202,16 +202,18 @@ function ChatArea({ displayName, sessionId, phone, onMinimize }) {
     })
 
     // Staff typing events
-    connection.on('ShowTypingIndicator', () => {
+    connection.on('ShowTypingIndicator', (incomingSessionId) => {
       if (cancelled) return
+      if (incomingSessionId && incomingSessionId !== sessionId) return
       setStaffTyping(true)
       clearTimeout(staffTypingTimerRef.current)
       // Auto-hide after 3s in case HideTypingIndicator is missed
       staffTypingTimerRef.current = setTimeout(() => setStaffTyping(false), 3000)
     })
 
-    connection.on('HideTypingIndicator', () => {
+    connection.on('HideTypingIndicator', (incomingSessionId) => {
       if (cancelled) return
+      if (incomingSessionId && incomingSessionId !== sessionId) return
       clearTimeout(staffTypingTimerRef.current)
       setStaffTyping(false)
     })
@@ -257,7 +259,11 @@ function ChatArea({ displayName, sessionId, phone, onMinimize }) {
         setMessages((prev) => [...fetched, ...prev])
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể tải tin nhắn')
+      if (err.response?.status === 404 && page === 1) {
+        onSessionInvalid?.()
+      } else {
+        toast.error(err.response?.data?.message || 'Không thể tải tin nhắn')
+      }
     } finally {
       setLoadingMore(false)
       setInitialLoading(false)
@@ -400,7 +406,7 @@ function ChatArea({ displayName, sessionId, phone, onMinimize }) {
             <MessageCircle size={20} className="text-white" />
           </div>
           <div>
-            <div className="text-white font-semibold text-sm">TechExpress Support</div>
+            <div className="text-white font-semibold text-sm">Hỗ trợ TechExpress</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-2 h-2 bg-green-400 rounded-full" />
               <span className="text-white/70 text-xs">Trực tuyến</span>
@@ -609,7 +615,7 @@ function ChatArea({ displayName, sessionId, phone, onMinimize }) {
               clearTimeout(typingDebounceRef.current)
               typingDebounceRef.current = setTimeout(() => {
                 if (connectionRef.current?.state === 'Connected') {
-                  connectionRef.current.invoke('UserTyping', sessionId).catch(() => {})
+                  connectionRef.current.invoke('CustomerTyping', sessionId).catch(() => {})
                 }
               }, 400)
             }}
@@ -656,17 +662,40 @@ function SessionLoading() {
   )
 }
 
+// ─── Guest session persistence ────────────────────────────────────────────────
+
+const GUEST_SESSION_KEY = 'techexpress_guest_chat'
+
+function loadGuestSession() {
+  try {
+    const raw = localStorage.getItem(GUEST_SESSION_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveGuestSession(name, phone, id) {
+  localStorage.setItem(GUEST_SESSION_KEY, JSON.stringify({ name, phone, sessionId: id }))
+}
+
+function clearGuestSession() {
+  localStorage.removeItem(GUEST_SESSION_KEY)
+}
+
 // ─── Root widget ──────────────────────────────────────────────────────────────
 
 export default function ChatWidget() {
   const { isAuthenticated, user } = useAuth()
   const [open, setOpen] = useState(false)
-  const [sessionId, setSessionId] = useState(null)
   const [sessionLoading, setSessionLoading] = useState(false)
 
-  // Display name / phone: from auth user or guest form
-  const [guestName, setGuestName] = useState(null)
-  const [guestPhone, setGuestPhone] = useState(null)
+  // Restore guest session from localStorage on first render
+  const saved = loadGuestSession()
+  const [guestName, setGuestName] = useState(saved?.name ?? null)
+  const [guestPhone, setGuestPhone] = useState(saved?.phone ?? null)
+  const [sessionId, setSessionId] = useState(saved?.sessionId ?? null)
+
   const displayName = isAuthenticated
     ? (user?.fullName || user?.name || user?.email || 'Bạn')
     : guestName
@@ -676,7 +705,10 @@ export default function ChatWidget() {
     setSessionLoading(true)
     try {
       const res = await apiService.post('/Chat/sessions', body)
-      setSessionId(res.value.id)
+      const id = res.value.id
+      setSessionId(id)
+      // Persist guest info so a refresh restores the session
+      if (body.fullName) saveGuestSession(body.fullName, body.phone, id)
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể kết nối, vui lòng thử lại')
     } finally {
@@ -701,6 +733,13 @@ export default function ChatWidget() {
 
   const handleClose = () => setOpen(false)
 
+  const handleGuestSessionInvalid = () => {
+    clearGuestSession()
+    setSessionId(null)
+    setGuestName(null)
+    setGuestPhone(null)
+  }
+
   // Decide what to render inside the panel
   const renderPanel = () => {
     if (isAuthenticated) {
@@ -723,7 +762,7 @@ export default function ChatWidget() {
       )
     }
 
-    return <ChatArea displayName={displayName} sessionId={sessionId} phone={guestPhone} onMinimize={handleClose} />
+    return <ChatArea displayName={displayName} sessionId={sessionId} phone={guestPhone} onMinimize={handleClose} onSessionInvalid={handleGuestSessionInvalid} />
   }
 
   return (

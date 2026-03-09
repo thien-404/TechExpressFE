@@ -76,7 +76,7 @@ const MD = {
 // ── Session list card ─────────────────────────────────────────────────────────
 
 function SessionCard({ session, active, onClick }) {
-  const name = session.guestFullName || session.userFullName || 'Khách'
+  const name = session.fullName || session.phone || 'Khách'
   return (
     <button
       onClick={onClick}
@@ -95,8 +95,8 @@ function SessionCard({ session, active, onClick }) {
             <span className="text-sm font-medium text-slate-800 truncate">{name}</span>
             <span className="text-[10px] text-slate-400 flex-shrink-0">{formatRelative(session.createdAt)}</span>
           </div>
-          {session.guestPhone && (
-            <div className="text-xs text-slate-500 mt-0.5 truncate">{session.guestPhone}</div>
+          {session.phone && (
+            <div className="text-xs text-slate-500 mt-0.5 truncate">{session.phone}</div>
           )}
         </div>
       </div>
@@ -121,9 +121,11 @@ function StaffChatPanel({ session, onSessionClose }) {
   const bottomRef = useRef(null)
   const prevScrollHeightRef = useRef(null)
   const customerTypingTimerRef = useRef(null)
+  const connectionRef = useRef(null)
+  const typingDebounceRef = useRef(null)
 
   const sessionId = session.id
-  const sessionName = session.guestFullName || session.userFullName || 'Khách'
+  const sessionName = session.fullName || session.phone || 'Khách'
 
   // ── Dedicated SignalR connection for this session ───────────────────────────
   // Owns its own connection (same pattern as ChatArea in ChatWidget) so it does
@@ -155,18 +157,22 @@ function StaffChatPanel({ session, onSessionClose }) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     })
 
-    connection.on('ShowTypingIndicator', () => {
+    connection.on('ShowTypingIndicator', (incomingSessionId) => {
       if (cancelled) return
+      if (incomingSessionId && incomingSessionId !== sessionId) return
       setCustomerTyping(true)
       clearTimeout(customerTypingTimerRef.current)
       customerTypingTimerRef.current = setTimeout(() => setCustomerTyping(false), 3000)
     })
 
-    connection.on('HideTypingIndicator', () => {
+    connection.on('HideTypingIndicator', (incomingSessionId) => {
       if (cancelled) return
+      if (incomingSessionId && incomingSessionId !== sessionId) return
       clearTimeout(customerTypingTimerRef.current)
       setCustomerTyping(false)
     })
+
+    connectionRef.current = connection
 
     connection
       .start()
@@ -195,7 +201,9 @@ function StaffChatPanel({ session, onSessionClose }) {
     return () => {
       cancelled = true
       clearTimeout(customerTypingTimerRef.current)
+      clearTimeout(typingDebounceRef.current)
       connection.stop()
+      connectionRef.current = null
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
@@ -300,8 +308,8 @@ function StaffChatPanel({ session, onSessionClose }) {
           <div>
             <div className="font-semibold text-slate-800 text-sm">{sessionName}</div>
             <div className="flex items-center gap-3 mt-0.5">
-              {session.guestPhone && (
-                <span className="text-xs text-slate-500">{session.guestPhone}</span>
+              {session.phone && (
+                <span className="text-xs text-slate-500">{session.phone}</span>
               )}
               <span className="flex items-center gap-1 text-xs text-slate-400">
                 <Clock size={11} />
@@ -431,7 +439,15 @@ function StaffChatPanel({ session, onSessionClose }) {
             <input
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value)
+                clearTimeout(typingDebounceRef.current)
+                typingDebounceRef.current = setTimeout(() => {
+                  if (connectionRef.current?.state === 'Connected') {
+                    connectionRef.current.invoke('StaffTyping', sessionId).catch(() => {})
+                  }
+                }, 400)
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
               }}
@@ -523,8 +539,8 @@ export default function AdminChatPage() {
   const filtered = sessions.filter((s) => {
     const q = search.trim().toLowerCase()
     if (!q) return true
-    const name = (s.guestFullName || s.userFullName || '').toLowerCase()
-    const phone = (s.guestPhone || '').toLowerCase()
+    const name = (s.fullName || '').toLowerCase()
+    const phone = (s.phone || '').toLowerCase()
     return name.includes(q) || phone.includes(q)
   })
 
