@@ -148,17 +148,17 @@ function ReviewMediaGrid({ mediaUrls = [] }) {
 
   return (
     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-      {mediaUrls.map((url, index) => (
+      {mediaUrls.map((url) => (
         <a
-          key={`${url}-${index}`}
-          href={url}
+          key={`${url.mediaUrl}-${url.id}`}
+          href={url.mediaUrl}
           target="_blank"
           rel="noreferrer"
           className="group block overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
         >
           <img
-            src={url}
-            alt={`Review media ${index + 1}`}
+            src={url.mediaUrl}
+            alt={`Review media ${url.id}`}
             className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-105"
           />
         </a>
@@ -168,6 +168,7 @@ function ReviewMediaGrid({ mediaUrls = [] }) {
 }
 
 function ReviewCard({ review, canDelete, deleting, onDelete }) {
+  console.log(review); // Debug log to check rendering
   return (
     <article className="rounded-xl border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -581,7 +582,7 @@ export default function ProductDetailPage() {
         SortBy: reviewFilters.sortBy,
         SortDirection: reviewFilters.sortDirection,
       });
-
+      // console.log("API Response for Reviews:", response);
       if (!response.succeeded) {
         throw new Error(response.message || "Không thể tải đánh giá sản phẩm");
       }

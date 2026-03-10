@@ -32,7 +32,7 @@ function normalizeReview(review) {
     fullName: review.fullName ?? review.reviewerName ?? review.customerName ?? review.name ?? "Anonymous",
     comment: review.comment ?? review.content ?? review.reviewText ?? "",
     rating: Number(review.rating ?? review.star ?? review.stars ?? 0) || 0,
-    mediaUrls: review.mediaUrls ?? review.images ?? review.imageUrls ?? [],
+    mediaUrls: review.medias ?? review.mediaUrls ?? review.images ?? review.imageUrls ?? [],
     createdAt: review.createdAt ?? review.createdDate ?? review.createdOn ?? review.creationTime ?? null,
     userId:
       review.userId ??
@@ -58,7 +58,6 @@ export const reviewService = {
   async getProductReviews(productId, params = {}) {
     const response = await apiService.get(`/review/product/${productId}`, params);
     const normalized = normalizeEnvelope(response);
-
     return {
       ...normalized,
       value: normalizePagination(normalized.value),
