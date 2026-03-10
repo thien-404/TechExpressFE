@@ -473,21 +473,21 @@ function isOwnReview(review, user) {
 function validateReviewForm({ isAuthenticated, form }) {
   const rating = Number(form.rating);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-    return "So sao phai tu 1 den 5.";
+    return "Số sao không hợp lệ. Vui lòng chọn từ 1 đến 5 sao.";
   }
 
   if (!String(form.comment || "").trim()) {
-    return "Vui long nhap noi dung danh gia.";
+    return "Vui lòng nhập nội dung đánh giá.";
   }
 
   if (!isAuthenticated) {
     if (!String(form.fullName || "").trim()) {
-      return "Vui long nhap ho ten.";
+      return "Vui lòng nhập họ tên.";
     }
 
     const phone = String(form.phone || "").trim();
     if (!/^\d{9,12}$/.test(phone)) {
-      return "So dien thoai phai la chu so va dai 9-12 ky tu.";
+      return "Số điện thoại phải là chữ số và dài từ 9-12 ký tự.";
     }
   }
 
