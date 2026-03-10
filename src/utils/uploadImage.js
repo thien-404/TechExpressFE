@@ -74,6 +74,38 @@ export async function uploadProductImages({ files, productId }) {
 }
 
 /**
+ * Upload nhieu anh cho review san pham
+ * @param {File[]} files
+ * @param {string} productId
+ * @returns {Promise<string[]>}
+ */
+export async function uploadReviewImages({ files, productId }) {
+  if (!files || files.length === 0) throw new Error('No files provided')
+  if (!productId) throw new Error('Missing productId')
+
+  const uploadPromises = files.map(async (file, index) => {
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      throw new Error(validation.error || `Invalid file ${file.name}`)
+    }
+
+    const timestamp = Date.now()
+    const extension = file.name.split('.').pop()
+    const filename = `${timestamp}_${index}.${extension}`
+    const imageRef = ref(storage, `products/${productId}/reviews/${filename}`)
+
+    await uploadBytes(imageRef, file, {
+      contentType: file.type,
+      cacheControl: 'public,max-age=31536000'
+    })
+
+    return await getDownloadURL(imageRef)
+  })
+
+  return await Promise.all(uploadPromises)
+}
+
+/**
  * Xóa ảnh sản phẩm theo URL
  * @param {string} imageUrl - URL của ảnh cần xóa
  * @param {string} productId - ID sản phẩm
