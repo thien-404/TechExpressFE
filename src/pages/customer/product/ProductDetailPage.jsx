@@ -29,10 +29,10 @@ import { uploadReviewImages, validateImageFiles } from "../../../utils/uploadIma
 const REVIEW_PAGE_SIZE = 5;
 
 const reviewSortOptions = [
-  { label: "Moi nhat", sortBy: REVIEW_SORT_BY.CREATED_AT, sortDirection: REVIEW_SORT_DIRECTION.DESC },
-  { label: "Cu nhat", sortBy: REVIEW_SORT_BY.CREATED_AT, sortDirection: REVIEW_SORT_DIRECTION.ASC },
-  { label: "Sao cao nhat", sortBy: REVIEW_SORT_BY.RATING, sortDirection: REVIEW_SORT_DIRECTION.DESC },
-  { label: "Sao thap nhat", sortBy: REVIEW_SORT_BY.RATING, sortDirection: REVIEW_SORT_DIRECTION.ASC },
+  { label: "Mới nhất", sortBy: REVIEW_SORT_BY.CREATED_AT, sortDirection: REVIEW_SORT_DIRECTION.DESC },
+  { label: "Cũ nhất", sortBy: REVIEW_SORT_BY.CREATED_AT, sortDirection: REVIEW_SORT_DIRECTION.ASC },
+  { label: "Sao cao nhất", sortBy: REVIEW_SORT_BY.RATING, sortDirection: REVIEW_SORT_DIRECTION.DESC },
+  { label: "Sao thấp nhất", sortBy: REVIEW_SORT_BY.RATING, sortDirection: REVIEW_SORT_DIRECTION.ASC },
 ];
 
 function formatPrice(value) {
@@ -95,7 +95,7 @@ function ReviewFilterBar({ filters, onRatingChange, onHasMediaChange, onSortChan
           onChange={(event) => onRatingChange(event.target.value)}
           className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-[#0090D0] focus:outline-none"
         >
-          <option value="">Tat ca muc sao</option>
+          <option value="">Tất cả mức sao</option>
           <option value="5">5 sao</option>
           <option value="4">4 sao</option>
           <option value="3">3 sao</option>
@@ -110,7 +110,7 @@ function ReviewFilterBar({ filters, onRatingChange, onHasMediaChange, onSortChan
             onChange={(event) => onHasMediaChange(event.target.checked)}
             className="h-4 w-4 rounded border-slate-300 text-[#0090D0] focus:ring-[#0090D0]"
           />
-          Chi hien review co anh
+          Chỉ hiện review có ảnh
         </label>
       </div>
 
@@ -135,7 +135,7 @@ function ReviewSummary({ averageRating, totalReviews }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-3xl font-bold text-slate-900">{averageRating.toFixed(1)}/5</p>
-          <p className="mt-1 text-sm text-slate-500">{totalReviews} danh gia</p>
+          <p className="mt-1 text-sm text-slate-500">{totalReviews} đánh giá</p>
         </div>
         <RatingStars rating={averageRating} size={18} />
       </div>
@@ -172,7 +172,7 @@ function ReviewCard({ review, canDelete, deleting, onDelete }) {
     <article className="rounded-xl border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">{review.fullName || "Anonymous"}</p>
+          <p className="text-sm font-semibold text-slate-900">{review.fullName || "Ẩn Danh"}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <RatingStars rating={review.rating} />
             <span className="text-xs text-slate-500">{formatDate(review.createdAt)}</span>
@@ -187,13 +187,13 @@ function ReviewCard({ review, canDelete, deleting, onDelete }) {
             className="inline-flex h-9 items-center gap-1 rounded-lg border border-rose-200 px-3 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            Xoa
+            Xóa
           </button>
         )}
       </div>
 
       <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">
-        {review.comment || "Khong co noi dung."}
+        {review.comment || "Không có nội dung."}
       </p>
 
       <ReviewMediaGrid mediaUrls={review.mediaUrls} />
@@ -215,11 +215,11 @@ function ReviewComposer({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900">Viet danh gia</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Viết đánh giá</h3>
         <p className="mt-1 text-sm text-slate-500">
           {isAuthenticated
-            ? "Nhap noi dung va so sao. Ho ten, so dien thoai se duoc backend lay tu profile neu de trong."
-            : "Khach vang lai can nhap ho ten, so dien thoai, noi dung va so sao."}
+            ? "Nhập đánh giá của bạn về sản phẩm này. Bạn có thể chia sẻ trải nghiệm, nhận xét về chất lượng, dịch vụ hoặc bất kỳ điều gì bạn muốn người khác biết."
+            : "Khách vãng lai vui lòng nhập họ tên và số điện thoại để gửi đánh giá. Thông tin này sẽ không được hiển thị công khai."}
         </p>
       </div>
 
@@ -227,30 +227,30 @@ function ReviewComposer({
         {!isAuthenticated && (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Ho ten</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Họ tên</label>
               <input
                 type="text"
                 value={form.fullName}
                 onChange={(event) => onChange("fullName", event.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#0090D0] focus:outline-none"
-                placeholder="Nhap ho ten"
+                placeholder="Nhập họ tên"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">So dien thoai</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Số điện thoại</label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={(event) => onChange("phone", event.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#0090D0] focus:outline-none"
-                placeholder="Nhap so dien thoai"
+                placeholder="Nhập số điện thoại"
               />
             </div>
           </div>
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">So sao</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Số sao</label>
           <div className="flex flex-wrap gap-2">
             {Array.from({ length: 5 }).map((_, index) => {
               const value = index + 1;
@@ -276,21 +276,21 @@ function ReviewComposer({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-slate-700">Noi dung</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Nội Dung</label>
           <textarea
             rows={4}
             value={form.comment}
             onChange={(event) => onChange("comment", event.target.value)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#0090D0] focus:outline-none"
-            placeholder="Chia se trai nghiem cua ban ve san pham"
+            placeholder="Chia sẻ trải nghiệm của bạn về sản phẩm"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Anh dinh kem</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">Ảnh đính kèm</label>
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-700 hover:border-[#0090D0] hover:text-[#0090D0]">
             <ImagePlus size={16} />
-            Chon anh
+            Chọn ảnh
             <input
               type="file"
               accept="image/png,image/jpeg,image/jpg,image/webp"
@@ -299,7 +299,7 @@ function ReviewComposer({
               onChange={(event) => onFilesChange(event.target.files)}
             />
           </label>
-          {selectedFiles.length > 0 && <p className="mt-2 text-xs text-slate-500">Da chon {selectedFiles.length} anh</p>}
+          {selectedFiles.length > 0 && <p className="mt-2 text-xs text-slate-500">Đã chọn {selectedFiles.length} ảnh</p>}
           {previewUrls.length > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {previewUrls.map((url, index) => (
@@ -310,7 +310,7 @@ function ReviewComposer({
                     onClick={() => onRemoveFile(index)}
                     className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white"
                   >
-                    Xoa
+                    Xóa
                   </button>
                 </div>
               ))}
@@ -325,7 +325,7 @@ function ReviewComposer({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#0090D0] px-5 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
-            Gui danh gia
+            Gửi đánh giá
           </button>
         </div>
       </form>
@@ -377,13 +377,13 @@ function ReviewsPanel({
       <section className="rounded-xl border border-slate-200 bg-white p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Danh sach danh gia</h3>
-            <p className="mt-1 text-sm text-slate-500">{summary.totalReviews} danh gia hien co</p>
+            <h3 className="text-lg font-semibold text-slate-900">Danh sách đánh giá</h3>
+            <p className="mt-1 text-sm text-slate-500">{summary.totalReviews} đánh giá hiện có</p>
           </div>
           {isRefreshing && !isLoading && (
             <span className="inline-flex items-center gap-2 text-sm text-slate-500">
               <Loader2 size={14} className="animate-spin" />
-              Dang cap nhat
+              Đang cập nhật
             </span>
           )}
         </div>
@@ -408,9 +408,9 @@ function ReviewsPanel({
           </div>
         ) : reviews.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
-            <p className="text-sm font-medium text-slate-700">Chua co danh gia phu hop</p>
+            <p className="text-sm font-medium text-slate-700">Chưa có đánh giá phù hợp</p>
             <p className="mt-1 text-sm text-slate-500">
-              Hay la nguoi dau tien chia se trai nghiem ve san pham nay.
+              Hãy là người đầu tiên chia sẻ trải nghiệm về sản phẩm này.
             </p>
           </div>
         ) : (
@@ -436,7 +436,7 @@ function ReviewsPanel({
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#0090D0] px-5 text-sm font-semibold text-[#0090D0] hover:bg-[#0090D0]/5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isFetchingNextPage ? <Loader2 size={16} className="animate-spin" /> : null}
-              Xem them danh gia
+              Xem thêm đánh giá
             </button>
           </div>
         )}
@@ -532,7 +532,7 @@ export default function ProductDetailPage() {
     queryFn: async () => {
       const res = await apiService.get(`/product/${productId}`);
       if (res?.statusCode !== 200) {
-        throw new Error(res?.message || "Khong the tai thong tin san pham");
+        throw new Error(res?.message || "Không thể tải thông tin sản phẩm");
       }
       return res.value;
     },
@@ -583,7 +583,7 @@ export default function ProductDetailPage() {
       });
 
       if (!response.succeeded) {
-        throw new Error(response.message || "Khong the tai danh gia san pham");
+        throw new Error(response.message || "Không thể tải đánh giá sản phẩm");
       }
 
       return {
@@ -608,7 +608,7 @@ export default function ProductDetailPage() {
       if (reviewFiles.length > 0) {
         const validation = validateImageFiles(reviewFiles);
         if (!validation.valid) {
-          throw new Error(validation.errors?.[0] || "Anh khong hop le.");
+          throw new Error(validation.errors?.[0] || "Ảnh không hợp lệ.");
         }
         mediaUrls = await uploadReviewImages({ files: reviewFiles, productId });
       }
@@ -622,13 +622,13 @@ export default function ProductDetailPage() {
       });
 
       if (!response.succeeded) {
-        throw new Error(response.message || "Khong the gui danh gia");
+        throw new Error(response.message || "Không thể gửi đánh giá");
       }
 
       return response.value;
     },
     onSuccess: async () => {
-      toast.success("Gui danh gia thanh cong");
+      toast.success("Gửi đánh giá thành công");
       setReviewForm({
         fullName: "",
         phone: "",
@@ -640,7 +640,7 @@ export default function ProductDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ["product-reviews", productId] });
     },
     onError: (error) => {
-      toast.error(error?.message || "Gui danh gia that bai");
+      toast.error(error?.message || "Gửi đánh giá thất bại");
     },
   });
 
@@ -648,16 +648,16 @@ export default function ProductDetailPage() {
     mutationFn: async (reviewId) => {
       const response = await reviewService.deleteReview(reviewId);
       if (!response.succeeded) {
-        throw new Error(response.message || "Khong the xoa danh gia");
+        throw new Error(response.message || "Không thể xóa đánh giá");
       }
       return reviewId;
     },
     onSuccess: async () => {
-      toast.success("Da xoa danh gia");
+      toast.success("Đã xóa đánh giá");
       await queryClient.invalidateQueries({ queryKey: ["product-reviews", productId] });
     },
     onError: (error) => {
-      toast.error(error?.message || "Xoa danh gia that bai");
+      toast.error(error?.message || "Xóa đánh giá thất bại");
     },
   });
 
@@ -690,12 +690,12 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product?.id) {
-      toast.error("Khong tim thay san pham");
+      toast.error("Không tìm thấy sản phẩm");
       return;
     }
 
     if (isOutOfStock) {
-      toast.error("San pham da het hang");
+      toast.error("Sản phẩm đã hết hàng");
       return;
     }
 
@@ -714,9 +714,9 @@ export default function ProductDetailPage() {
           },
         })
       ).unwrap();
-      toast.success("Da them vao gio hang");
+      toast.success("Đã thêm vào giỏ hàng");
     } catch (error) {
-      toast.error(error || "Khong the them vao gio hang");
+      toast.error(error || "Không thể thêm vào giỏ hàng");
     }
   };
 
@@ -747,7 +747,7 @@ export default function ProductDetailPage() {
 
     const validation = validateImageFiles(nextFiles);
     if (!validation.valid) {
-      toast.error(validation.errors?.[0] || "Anh khong hop le");
+      toast.error(validation.errors?.[0] || "Ảnh không hợp lệ");
       return;
     }
 
@@ -769,7 +769,7 @@ export default function ProductDetailPage() {
 
   const handleDeleteReview = (review) => {
     if (!review?.id) return;
-    if (!window.confirm("Ban co chac muon xoa danh gia nay?")) return;
+    if (!window.confirm("Bạn có chắc muốn xóa đánh giá này?")) return;
     deleteReviewMutation.mutate(review.id);
   };
 
@@ -796,13 +796,13 @@ export default function ProductDetailPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-          <h1 className="mb-2 text-xl font-semibold text-red-700">Khong tim thay san pham</h1>
-          <p className="mb-4 text-sm text-red-600">Du lieu co the da bi thay doi hoac khong ton tai.</p>
+          <h1 className="mb-2 text-xl font-semibold text-red-700">Không tìm thấy sản phẩm</h1>
+          <p className="mb-4 text-sm text-red-600">Dữ liệu có thể đã bị thay đổi hoặc không tồn tại.</p>
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-[#0090D0] px-4 py-2 font-medium text-white"
           >
-            Ve trang chu
+            Về trang chủ
           </Link>
         </div>
       </div>
@@ -813,10 +813,10 @@ export default function ProductDetailPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 pb-28 md:py-8 md:pb-8">
       <div className="mb-4">
         <Link to="/" className="text-sm text-[#0090D0] hover:underline">
-          Trang chu
+          Trang chủ
         </Link>
         <span className="mx-2 text-slate-400">/</span>
-        <span className="text-sm text-slate-600">{product.categoryName || "San pham"}</span>
+        <span className="text-sm text-slate-600">{product.categoryName || "Sản phẩm"}</span>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -909,7 +909,7 @@ export default function ProductDetailPage() {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span>SKU: {product.sku || "-"}</span>
               <span className="text-slate-300">|</span>
-              <span>{product.categoryName || "Khong ro danh muc"}</span>
+              <span>{product.categoryName || "Không rõ danh mục"}</span>
             </div>
 
             <div className="mt-4 flex items-center gap-3">
@@ -919,23 +919,23 @@ export default function ProductDetailPage() {
                   isOutOfStock ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                 }`}
               >
-                {isOutOfStock ? "Het hang" : "Con hang"}
+                {isOutOfStock ? "Hết hàng" : "Còn hàng"}
               </span>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md bg-slate-50 p-3">
-                <div className="text-slate-500">Ton kho</div>
+                <div className="text-slate-500">Tồn kho</div>
                 <div className="font-semibold text-slate-800">{stock}</div>
               </div>
               <div className="rounded-md bg-slate-50 p-3">
-                <div className="text-slate-500">Bao hanh</div>
-                <div className="font-semibold text-slate-800">{product.warrantyMonth || 0} thang</div>
+                <div className="text-slate-500">Bảo hành</div>
+                <div className="font-semibold text-slate-800">{product.warrantyMonth || 0} tháng</div>
               </div>
             </div>
 
             <div className="mt-5">
-              <div className="mb-2 text-sm font-medium text-slate-700">So luong</div>
+              <div className="mb-2 text-sm font-medium text-slate-700">Số lượng</div>
               <div className="inline-flex items-center overflow-hidden rounded-md border border-slate-300">
                 <button
                   type="button"
@@ -972,7 +972,7 @@ export default function ProductDetailPage() {
               className="mt-5 hidden h-11 w-full items-center justify-center gap-2 rounded-md bg-[#0090D0] font-semibold text-white hover:bg-[#0077B0] disabled:bg-slate-300 md:flex"
             >
               <ShoppingCart size={18} />
-              Them vao gio hang
+              Thêm vào giỏ hàng
             </button>
           </div>
         </div>
@@ -980,17 +980,17 @@ export default function ProductDetailPage() {
 
       <div className="mt-6 space-y-4 md:hidden">
         <SectionAccordion
-          title="Mo ta san pham"
+          title="Mô tả sản phẩm"
           open={openSection === "description"}
           onToggle={() => setOpenSection((prev) => (prev === "description" ? "" : "description"))}
         >
           <p className="text-sm leading-relaxed text-slate-700">
-            {product.description || "Chua co mo ta cho san pham nay."}
+            {product.description || "Chưa có mô tả cho sản phẩm này."}
           </p>
         </SectionAccordion>
 
         <SectionAccordion
-          title="Thong so ky thuat"
+          title="Thông số kỹ thuật"
           open={openSection === "specs"}
           onToggle={() => setOpenSection((prev) => (prev === "specs" ? "" : "specs"))}
         >
@@ -1007,7 +1007,7 @@ export default function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Chua co thong so ky thuat.</p>
+            <p className="text-sm text-slate-500">Chưa có thông số kỹ thuật.</p>
           )}
         </SectionAccordion>
 
@@ -1046,14 +1046,14 @@ export default function ProductDetailPage() {
 
       <div className="mt-8 hidden space-y-6 md:block">
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-3 text-lg font-semibold text-slate-900">Mo ta san pham</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">Mô tả sản phẩm</h2>
           <p className="text-sm leading-relaxed text-slate-700">
-            {product.description || "Chua co mo ta cho san pham nay."}
+            {product.description || "Chưa có mô tả cho sản phẩm này."}
           </p>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="mb-3 text-lg font-semibold text-slate-900">Thong so ky thuat</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">Thông số kỹ thuật</h2>
           {(product.specValues || []).length > 0 ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {(product.specValues || []).map((spec) => (
@@ -1067,7 +1067,7 @@ export default function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Chua co thong so ky thuat.</p>
+            <p className="text-sm text-slate-500">Chưa có thông số kỹ thuật.</p>
           )}
         </section>
 
@@ -1100,7 +1100,7 @@ export default function ProductDetailPage() {
 
       <section className="mt-8 md:mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-900">San pham cung danh muc</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Sản phẩm cùng danh mục</h2>
         </div>
 
         {relatedLoading ? (
@@ -1121,7 +1121,7 @@ export default function ProductDetailPage() {
           </div>
         ) : (
           <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
-            Chua co san pham lien quan.
+            Không có sản phẩm liên quan.
           </div>
         )}
       </section>
@@ -1131,7 +1131,7 @@ export default function ProductDetailPage() {
           <div className="min-w-0 flex-1">
             <div className="truncate text-base font-bold text-red-600">{formatPrice(product.price)}</div>
             <div className={`text-xs ${isOutOfStock ? "text-red-600" : "text-green-700"}`}>
-              {isOutOfStock ? "Het hang" : `Con ${stock} san pham`}
+              {isOutOfStock ? "Hết hàng" : `Còn ${stock} sản phẩm`}
             </div>
           </div>
           <button
@@ -1141,7 +1141,7 @@ export default function ProductDetailPage() {
             className="inline-flex h-11 items-center gap-2 rounded-md bg-[#0090D0] px-4 font-semibold text-white hover:bg-[#0077B0] disabled:bg-slate-300"
           >
             <ShoppingCart size={17} />
-            Them vao gio
+            Thêm vào giỏ
           </button>
         </div>
       </div>
