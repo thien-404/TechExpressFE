@@ -4,6 +4,7 @@ import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import CategorySidebar from '../components/ui/CategorySidebar'
 import CartBootstrap from '../components/customer/CartBootstrap'
+import ChatWidget from '../components/common/ChatWidget'
 
 export default function CustomerLayout() {
   const location = useLocation()
@@ -38,6 +39,8 @@ export default function CustomerLayout() {
 
       {/* Footer */}
       <Footer />
+
+      <ChatWidget />
     </div>
   )
 }

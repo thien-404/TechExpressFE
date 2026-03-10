@@ -10,7 +10,8 @@ import {
   X,
   PcCase,
   ChartBarStacked,
-  Bandage
+  Bandage,
+  MessageSquare
 } from 'lucide-react'
 
 /* =========================
@@ -158,6 +159,10 @@ export default function AdminSideBar({ open, onClose }) {
 
           <SideLink to="/admin/orders" icon={ShoppingCart} onClick={onClose}>
             Đơn Hàng
+          </SideLink>
+
+          <SideLink to="/admin/chat" icon={MessageSquare} onClick={onClose}>
+            Hỗ trợ khách hàng
           </SideLink>
         </nav>
       </aside>
