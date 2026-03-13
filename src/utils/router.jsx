@@ -20,6 +20,9 @@ import ProductPage from "../pages/admin/Product/ProductPage.jsx";
 import ProductDetailPage from "../pages/admin/Product/ProductDetailPage.jsx";
 import ProductCreatePage from "../pages/admin/Product/ProductCreatePage.jsx";
 import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
+import PromotionPage from "../pages/admin/Promotions/PromotionPage.jsx";
+import PromotionCreatePage from "../pages/admin/Promotions/PromotionCreatePage.jsx";
+import PromotionDetailPage from "../pages/admin/Promotions/PromotionDetailPage.jsx";
 import OrderPage from "../pages/admin/Order/OrderPage.jsx";
 import OrderDetailPage from "../pages/admin/Order/OrderDetailPage.jsx";
 import AdminChatPage from "../pages/admin/Chat/AdminChatPage.jsx";
@@ -32,6 +35,7 @@ import CartPage from "../pages/customer/CartPage.jsx";
 import CheckoutPage from "../pages/customer/CheckoutPage.jsx";
 import CustomerProductDetailPage from "../pages/customer/product/ProductDetailPage.jsx";
 import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
+import CustomPcBuilderPage from "../pages/customer/CustomPcBuilderPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
@@ -47,6 +51,7 @@ export const router = createBrowserRouter([
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
+      { path: "custom-pc-builder", element: <CustomPcBuilderPage /> },
       { path: "products/search", element: <ProductSearchPage /> },
       { path: "products/:productId", element: <CustomerProductDetailPage /> }
     ]
@@ -71,6 +76,9 @@ export const router = createBrowserRouter([
       { path: "products/create", element: <ProductCreatePage /> },
       { path: "products/:productId", element: <ProductDetailPage /> },
       { path: "products/:productId/edit", element: <ProductUpdatePage /> },
+      { path: "promotions", element: <PromotionPage /> },
+      { path: "promotions/create", element: <PromotionCreatePage /> },
+      { path: "promotions/:promotionId", element: <PromotionDetailPage /> },
       { path: "orders", element: <OrderPage /> },
       { path: "orders/:orderId", element: <OrderDetailPage /> },
       { path: "chat", element: <AdminChatPage /> },

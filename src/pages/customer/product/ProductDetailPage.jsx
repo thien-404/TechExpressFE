@@ -168,7 +168,6 @@ function ReviewMediaGrid({ mediaUrls = [] }) {
 }
 
 function ReviewCard({ review, canDelete, deleting, onDelete }) {
-  console.log(review); // Debug log to check rendering
   return (
     <article className="rounded-xl border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -582,7 +581,6 @@ export default function ProductDetailPage() {
         SortBy: reviewFilters.sortBy,
         SortDirection: reviewFilters.sortDirection,
       });
-      // console.log("API Response for Reviews:", response);
       if (!response.succeeded) {
         throw new Error(response.message || "Không thể tải đánh giá sản phẩm");
       }

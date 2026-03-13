@@ -151,9 +151,9 @@ instance.interceptors.response.use(
    API Service (no TS, no throw)
 ========================= */
 export const apiService = {
-  async get(url, params) {
+  async get(url, params, options = {}) {
     try {
-      const response = await instance.get(url, { params })
+      const response = await instance.get(url, { ...options, params })
       return {
         ...response.data,
         status: response.status
@@ -170,9 +170,9 @@ export const apiService = {
     }
   },
 
-  async post(url, body) {
+  async post(url, body, options = {}) {
   try {
-    const response = await instance.post(url, body)
+    const response = await instance.post(url, body, options)
 
     return {
       ...response.data,
@@ -192,9 +192,9 @@ export const apiService = {
   }
   },
 
-  async put(url, body) {
+  async put(url, body, options = {}) {
     try {
-      const response = await instance.put(url, body)
+      const response = await instance.put(url, body, options)
       return {
         ...response.data,
         status: response.status
@@ -211,9 +211,9 @@ export const apiService = {
     }
   },
 
-  async patch(url, body) {
+  async patch(url, body, options = {}) {
     try {
-      const response = await instance.patch(url, body)
+      const response = await instance.patch(url, body, options)
       return {
         ...response.data,
         status: response.status
@@ -230,9 +230,9 @@ export const apiService = {
     }
   },
 
-  async delete(url) {
+  async delete(url, options = {}) {
     try {
-      const response = await instance.delete(url)
+      const response = await instance.delete(url, options)
       return {
         ...response.data,
         status: response.status
