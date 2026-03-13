@@ -32,6 +32,7 @@ import CartPage from "../pages/customer/CartPage.jsx";
 import CheckoutPage from "../pages/customer/CheckoutPage.jsx";
 import CustomerProductDetailPage from "../pages/customer/product/ProductDetailPage.jsx";
 import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
+import CustomPcBuilderPage from "../pages/customer/CustomPcBuilderPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
+      { path: "custom-pc-builder", element: <ProtectedRoute requiredRole="Customer"><CustomPcBuilderPage /></ProtectedRoute> },
       { path: "products/search", element: <ProductSearchPage /> },
       { path: "products/:productId", element: <CustomerProductDetailPage /> }
     ]

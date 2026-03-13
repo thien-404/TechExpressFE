@@ -90,8 +90,15 @@ export default function Header({ onToggleCategorySidebar }) {
           </div>
 
           <div className="text-[11px] text-white/80 truncate">
-            ban phim keychron . MSI Cyborg 15 . ASUS OLED . PC Gaming . Razer . USB . Loa
+            ban phim keychron . MSI Cyborg 15 . ASUS OLED . Custom PC Builder . Razer . USB . Loa
           </div>
+
+          <NavLink
+            to="/custom-pc-builder"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-white/15 px-3 text-sm font-medium text-white hover:bg-white/20"
+          >
+            Custom PC Builder
+          </NavLink>
         </div>
       </div>
 
@@ -153,6 +160,9 @@ export default function Header({ onToggleCategorySidebar }) {
 
       <div className="bg-slate-700 hidden lg:block">
         <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-center gap-12  text-sm text-white">
+          <NavLink className="hover:text-yellow-400" to="/custom-pc-builder">
+            CUSTOM PC
+          </NavLink>
           <NavLink className="hover:text-yellow-400" to="/checkout">
             THANH TOAN
           </NavLink>
