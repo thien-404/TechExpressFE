@@ -1,4 +1,5 @@
 import { apiService } from "../config/axios";
+import { getOrCreateCustomPcGuestSessionId } from "../utils/customPcSession";
 
 function normalizeEnvelope(response) {
   const statusCode = response?.statusCode ?? response?.status;
@@ -32,8 +33,10 @@ function normalizeProduct(product) {
     price: Number(product.price ?? product.unitPrice ?? product.salePrice ?? 0) || 0,
     firstImageUrl: firstImage,
     categoryName: product.categoryName ?? product.category?.name ?? product.productCategoryName ?? "Other parts",
+    categoryId: product.categoryId ?? product.category?.id ?? null,
     stockQty: Number(product.stockQty ?? product.stock ?? product.quantityAvailable ?? 0) || 0,
     status: product.status ?? product.productStatus ?? "Available",
+    warrantyMonth: Number(product.warrantyMonth ?? product.warrantyMonths ?? 0) || 0,
   };
 }
 
@@ -47,6 +50,8 @@ function normalizeItem(item) {
     quantity: Number(item?.quantity ?? item?.qty ?? 1) || 1,
     unitPrice: Number(item?.unitPrice ?? item?.price ?? product?.price ?? 0) || 0,
     warrantyMonth: Number(item?.warrantyMonth ?? product?.warrantyMonth ?? 0) || 0,
+    categoryId: item?.categoryId ?? product?.categoryId ?? null,
+    firstImageUrl: item?.firstImageUrl ?? product?.firstImageUrl ?? "",
     productName: item?.productName ?? product?.name ?? "Unnamed product",
     product:
       product ||
@@ -54,6 +59,8 @@ function normalizeItem(item) {
         id: item?.productId,
         name: item?.productName,
         price: item?.price,
+        firstImageUrl: item?.firstImageUrl,
+        categoryId: item?.categoryId,
         warrantyMonth: item?.warrantyMonth,
       }),
   };
@@ -86,9 +93,26 @@ function normalizeBuild(build) {
   };
 }
 
+function buildCustomPcRequestOptions() {
+  if (typeof localStorage === "undefined") {
+    return {};
+  }
+
+  const token = localStorage.getItem("token");
+  if (token) {
+    return {};
+  }
+
+  return {
+    headers: {
+      "X-CustomPC-Guest-Session": getOrCreateCustomPcGuestSessionId(),
+    },
+  };
+}
+
 export const customPcService = {
   async getCustomPcBuilds() {
-    const response = await apiService.get("/custompc");
+    const response = await apiService.get("/custompc", undefined, buildCustomPcRequestOptions());
     const normalized = normalizeEnvelope(response);
 
     return {
@@ -98,7 +122,7 @@ export const customPcService = {
   },
 
   async createCustomPcBuild(payload) {
-    const response = await apiService.post("/custompc", payload);
+    const response = await apiService.post("/custompc", payload, buildCustomPcRequestOptions());
     const normalized = normalizeEnvelope(response);
 
     return {
@@ -108,7 +132,7 @@ export const customPcService = {
   },
 
   async getCustomPcBuildDetail(customPcId) {
-    const response = await apiService.get(`/custompc/${customPcId}`);
+    const response = await apiService.get(`/custompc/${customPcId}/items`, undefined, buildCustomPcRequestOptions());
     const normalized = normalizeEnvelope(response);
 
     return {
@@ -118,7 +142,7 @@ export const customPcService = {
   },
 
   async addItemToCustomPc(customPcId, payload) {
-    const response = await apiService.post(`/custompc/${customPcId}/items`, payload);
+    const response = await apiService.post(`/custompc/${customPcId}/items`, payload, buildCustomPcRequestOptions());
     const normalized = normalizeEnvelope(response);
 
     return {
@@ -127,8 +151,13 @@ export const customPcService = {
     };
   },
 
+  async checkCompatibility(payload) {
+    const response = await apiService.post("/ProductPC/compatibility", payload, buildCustomPcRequestOptions());
+    return normalizeEnvelope(response);
+  },
+
   async deleteCustomPcBuild(customPcId) {
-    const response = await apiService.delete(`/custompc/${customPcId}`);
+    const response = await apiService.delete(`/custompc/${customPcId}`, buildCustomPcRequestOptions());
     return normalizeEnvelope(response);
   },
 

@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
-      { path: "custom-pc-builder", element: <ProtectedRoute requiredRole="Customer"><CustomPcBuilderPage /></ProtectedRoute> },
+      { path: "custom-pc-builder", element: <CustomPcBuilderPage /> },
       { path: "products/search", element: <ProductSearchPage /> },
       { path: "products/:productId", element: <CustomerProductDetailPage /> }
     ]
