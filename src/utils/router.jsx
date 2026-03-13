@@ -20,6 +20,9 @@ import ProductPage from "../pages/admin/Product/ProductPage.jsx";
 import ProductDetailPage from "../pages/admin/Product/ProductDetailPage.jsx";
 import ProductCreatePage from "../pages/admin/Product/ProductCreatePage.jsx";
 import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
+import PromotionPage from "../pages/admin/Promotions/PromotionPage.jsx";
+import PromotionCreatePage from "../pages/admin/Promotions/PromotionCreatePage.jsx";
+import PromotionDetailPage from "../pages/admin/Promotions/PromotionDetailPage.jsx";
 import OrderPage from "../pages/admin/Order/OrderPage.jsx";
 import OrderDetailPage from "../pages/admin/Order/OrderDetailPage.jsx";
 import AdminChatPage from "../pages/admin/Chat/AdminChatPage.jsx";
@@ -73,6 +76,9 @@ export const router = createBrowserRouter([
       { path: "products/create", element: <ProductCreatePage /> },
       { path: "products/:productId", element: <ProductDetailPage /> },
       { path: "products/:productId/edit", element: <ProductUpdatePage /> },
+      { path: "promotions", element: <PromotionPage /> },
+      { path: "promotions/create", element: <PromotionCreatePage /> },
+      { path: "promotions/:promotionId", element: <PromotionDetailPage /> },
       { path: "orders", element: <OrderPage /> },
       { path: "orders/:orderId", element: <OrderDetailPage /> },
       { path: "chat", element: <AdminChatPage /> },
