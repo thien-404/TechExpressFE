@@ -46,6 +46,11 @@ function normalizeServerItem(item) {
   };
 }
 
+function normalizeServerItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items.map(normalizeServerItem);
+}
+
 function normalizeLocalItem(item) {
   const quantity = Math.max(Number(item?.quantity) || 1, 1);
   const unitPrice = Number(item?.unitPrice ?? item?.price) || 0;
@@ -152,7 +157,7 @@ export const fetchCartItems = createAsyncThunk(
       return rejectWithValue(response.message || "Failed to fetch cart items");
     }
 
-    return (response.value || []).map(normalizeServerItem);
+    return normalizeServerItems(response.value || []);
   }
 );
 
@@ -164,7 +169,7 @@ export const syncCartAfterLogin = createAsyncThunk(
       return rejectWithValue(serverResponse.message || "Failed to fetch server cart");
     }
 
-    const serverItems = (serverResponse.value || []).map(normalizeServerItem);
+    const serverItems = normalizeServerItems(serverResponse.value || []);
     const localItems = readCartFromStorage();
 
     if (localItems.length === 0) {
@@ -198,7 +203,7 @@ export const syncCartAfterLogin = createAsyncThunk(
     }
 
     removeCartStorage();
-    return (latestServerResponse.value || []).map(normalizeServerItem);
+    return normalizeServerItems(latestServerResponse.value || []);
   }
 );
 
@@ -262,7 +267,7 @@ export const addCartItem = createAsyncThunk(
 
     return {
       mode: "server",
-      items: (latest.value || []).map(normalizeServerItem),
+      items: normalizeServerItems(latest.value || []),
     };
   }
 );
@@ -313,7 +318,7 @@ export const changeCartItemQuantity = createAsyncThunk(
 
     return {
       mode: "server",
-      items: (latest.value || []).map(normalizeServerItem),
+      items: normalizeServerItems(latest.value || []),
     };
   }
 );
@@ -347,7 +352,7 @@ export const removeCartItem = createAsyncThunk(
 
     return {
       mode: "server",
-      items: (latest.value || []).map(normalizeServerItem),
+      items: normalizeServerItems(latest.value || []),
     };
   }
 );
@@ -385,7 +390,14 @@ function setItemsFromPayload(state, action) {
 const cartSlice = createSlice({
   name: "cart",
   initialState,
-  reducers: {},
+  reducers: {
+    hydrateCartFromSignalR(state, action) {
+      state.items = normalizeServerItems(action.payload);
+      state.source = "server";
+      state.error = null;
+      state.lastSyncedAt = new Date().toISOString();
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(bootstrapCart.pending, (state) => {
@@ -486,6 +498,7 @@ const cartSlice = createSlice({
 });
 
 export default cartSlice.reducer;
+export const { hydrateCartFromSignalR } = cartSlice.actions;
 
 export const selectCartItems = (state) => state.cart.items;
 export const selectCartLoading = (state) => state.cart.loading;
