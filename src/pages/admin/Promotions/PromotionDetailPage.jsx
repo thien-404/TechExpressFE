@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { FiArrowLeft, FiGift, FiInfo, FiPackage, FiPower } from "react-icons/fi";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  FiArrowLeft,
+  FiGift,
+  FiInfo,
+  FiPackage,
+  FiPower,
+  FiTrash2,
+} from "react-icons/fi";
 import { toast } from "sonner";
 
 import Breadcrumb from "../../../components/ui/Breadcrumb";
@@ -12,10 +19,10 @@ import {
   cachePromotion,
   formatCurrency,
   formatDateTime,
-  getCachedPromotion,
   getPromotionScopeLabel,
   getPromotionStatus,
   getPromotionTypeLabel,
+  getRequiredProductLogicLabel,
 } from "./promotionHelpers";
 
 function StatusBadge({ promotion }) {
@@ -34,7 +41,9 @@ function InfoRow({ label, value }) {
   return (
     <div className="flex items-center justify-between rounded-lg px-4 py-3 hover:bg-slate-50">
       <div className="text-sm text-slate-600">{label}</div>
-      <div className="text-right text-sm font-medium text-slate-700">{value ?? "-"}</div>
+      <div className="text-right text-sm font-medium text-slate-700">
+        {value ?? "-"}
+      </div>
     </div>
   );
 }
@@ -79,14 +88,10 @@ function Tabs({ active, onChange }) {
 export default function PromotionDetailPage() {
   const { promotionId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabFromUrl = searchParams.get("tab") || "info";
   const [activeTab, setActiveTab] = useState(tabFromUrl);
-  const [promotion, setPromotion] = useState(
-    location.state?.promotion || getCachedPromotion(promotionId),
-  );
   const [productQuery, setProductQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
@@ -96,12 +101,26 @@ export default function PromotionDetailPage() {
     setActiveTab(tabFromUrl);
   }, [tabFromUrl]);
 
-  useEffect(() => {
-    if (location.state?.promotion) {
-      setPromotion(location.state.promotion);
-      cachePromotion(location.state.promotion);
-    }
-  }, [location.state]);
+  const {
+    data: promotion,
+    isLoading: promotionLoading,
+    refetch: refetchPromotion,
+  } = useQuery({
+    enabled: !!promotionId,
+    queryKey: ["promotion-detail", promotionId],
+    queryFn: async () => {
+      const res = await apiService.get(`/promotion/${promotionId}`);
+
+      if (res?.statusCode !== 200) {
+        toast.error(res?.message || "Không thể tải chi tiết khuyến mãi");
+        return null;
+      }
+
+      cachePromotion(res.value);
+      return res.value;
+    },
+    staleTime: 30_000,
+  });
 
   const disableMutation = useMutation({
     mutationFn: async () => {
@@ -115,23 +134,50 @@ export default function PromotionDetailPage() {
 
       return res.value;
     },
-    onSuccess: (value) => {
-      const nextValue = value || (promotion ? { ...promotion, isActive: false } : null);
-      if (nextValue) {
-        cachePromotion(nextValue);
-        setPromotion(nextValue);
-      }
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
+      queryClient.invalidateQueries({ queryKey: ["promotion-detail", promotionId] });
       toast.success("Đã vô hiệu hóa khuyến mãi");
+      refetchPromotion();
     },
     onError: (error) => {
       toast.error(error?.message || "Vô hiệu hóa khuyến mãi thất bại");
     },
   });
 
-  const { data: productData, isLoading: productsLoading, isFetching: productsFetching } = useQuery({
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiService.delete(`/promotion/${promotionId}`);
+
+      if (res?.statusCode !== 200) {
+        throw new Error(res?.message || "Xóa khuyến mãi thất bại");
+      }
+
+      return res.value;
+    },
+    onSuccess: (message) => {
+      toast.success(message || "Đã xử lý xóa khuyến mãi");
+      queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
+      navigate("/admin/promotions");
+    },
+    onError: (error) => {
+      toast.error(error?.message || "Xóa khuyến mãi thất bại");
+    },
+  });
+
+  const {
+    data: productData,
+    isLoading: productsLoading,
+    isFetching: productsFetching,
+  } = useQuery({
     enabled: !!promotionId && activeTab === "products",
-    queryKey: ["promotion-products-admin", promotionId, searchTerm, pageNumber, pageSize],
+    queryKey: [
+      "promotion-products-admin",
+      promotionId,
+      searchTerm,
+      pageNumber,
+      pageSize,
+    ],
     queryFn: async () => {
       const res = await apiService.get(`/promotion/admin/${promotionId}/products`, {
         search: searchTerm || undefined,
@@ -154,6 +200,9 @@ export default function PromotionDetailPage() {
   const totalItems = productData?.totalCount || 0;
   const totalPages = productData?.totalPages || 1;
   const loadingProducts = productsLoading || productsFetching;
+  const status = useMemo(() => getPromotionStatus(promotion), [promotion]);
+  const isActive = promotion?.status ?? promotion?.isActive ?? false;
+  const discountType = promotion?.discountType ?? promotion?.type;
 
   const changeTab = (tab) => {
     setActiveTab(tab);
@@ -172,7 +221,33 @@ export default function PromotionDetailPage() {
     }
   };
 
-  const status = useMemo(() => getPromotionStatus(promotion), [promotion]);
+  const handleDelete = () => {
+    if (!promotion) return;
+
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn xóa khuyến mãi "${promotion.name}"?\n\nNếu khuyến mãi đã có lượt dùng, BE sẽ chuyển sang vô hiệu hóa thay vì xóa cứng.`,
+    );
+
+    if (confirmed) {
+      deleteMutation.mutate();
+    }
+  };
+
+  if (promotionLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-sm text-slate-500">Đang tải thông tin khuyến mãi...</div>
+      </div>
+    );
+  }
+
+  if (!promotion) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-700">
+        Không tìm thấy khuyến mãi hoặc dữ liệu không còn khả dụng.
+      </div>
+    );
+  }
 
   return (
     <div className="font-[var(--font-inter)]">
@@ -181,7 +256,7 @@ export default function PromotionDetailPage() {
           items={[
             { label: "Trang chủ", href: "/admin" },
             { label: "Quản lý khuyến mãi", href: "/admin/promotions" },
-            { label: promotion?.name || "Chi tiết khuyến mãi" },
+            { label: promotion.name || "Chi tiết khuyến mãi" },
           ]}
         />
 
@@ -198,34 +273,41 @@ export default function PromotionDetailPage() {
       <div className="mt-3 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-[#334155]">
-            {promotion?.name || "Chi tiết khuyến mãi"}
+            {promotion.name || "Chi tiết khuyến mãi"}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            {promotion && <StatusBadge promotion={promotion} />}
-            {promotion?.code && (
-              <span className="text-sm text-slate-500">
-                Mã: <code className="rounded bg-slate-100 px-2 py-1">{promotion.code}</code>
-              </span>
-            )}
+            <StatusBadge promotion={promotion} />
+            <span className="text-sm text-slate-500">
+              Mã:{" "}
+              <code className="rounded bg-slate-100 px-2 py-1">
+                {promotion.code || "-"}
+              </code>
+            </span>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleDisable}
-          disabled={!promotion?.isActive || disableMutation.isPending}
-          className="inline-flex h-9 items-center gap-2 rounded border border-rose-200 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <FiPower size={14} />
-          Vô hiệu hóa
-        </button>
-      </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleDisable}
+            disabled={!isActive || disableMutation.isPending}
+            className="inline-flex h-9 items-center gap-2 rounded border border-rose-200 px-4 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FiPower size={14} />
+            Vô hiệu hóa
+          </button>
 
-      {!promotion && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          Không tìm thấy dữ liệu chi tiết đã lưu cho khuyến mãi này. Bạn vẫn có thể xem danh sách sản phẩm áp dụng ở tab bên dưới.
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            className="inline-flex h-9 items-center gap-2 rounded border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <FiTrash2 size={14} />
+            Xóa
+          </button>
         </div>
-      )}
+      </div>
 
       <div className="mt-4 rounded-lg border border-slate-200 bg-white shadow-sm">
         <Tabs active={activeTab} onChange={changeTab} />
@@ -239,13 +321,14 @@ export default function PromotionDetailPage() {
                     <FiGift size={24} />
                   </div>
                   <h2 className="text-lg font-semibold text-slate-800">
-                    {promotion?.name || "Khuyến mãi"}
+                    {promotion.name}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {promotion?.description || "Chưa có mô tả chi tiết."}
+                    {promotion.description || "Chưa có mô tả chi tiết."}
                   </p>
                   <div className="mt-4 rounded-lg border border-white/80 bg-white/80 px-4 py-3 text-sm text-slate-600">
-                    Trạng thái hiện tại: <span className="font-semibold">{status.label}</span>
+                    Trạng thái hiện tại:{" "}
+                    <span className="font-semibold">{status.label}</span>
                   </div>
                 </div>
               </div>
@@ -256,33 +339,87 @@ export default function PromotionDetailPage() {
                     Thông tin cơ bản
                   </div>
                   <div className="space-y-2 p-4">
-                    <InfoRow label="Mã khuyến mãi" value={promotion?.code || "-"} />
-                    <InfoRow label="Loại" value={getPromotionTypeLabel(promotion?.type)} />
-                    <InfoRow label="Phạm vi" value={getPromotionScopeLabel(promotion?.scope)} />
+                    <InfoRow label="Mã khuyến mãi" value={promotion.code || "-"} />
+                    <InfoRow
+                      label="Loại khuyến mãi"
+                      value={getPromotionTypeLabel(discountType)}
+                    />
+                    <InfoRow
+                      label="Phạm vi áp dụng"
+                      value={getPromotionScopeLabel(promotion.scope)}
+                    />
                     <InfoRow
                       label="Giá trị ưu đãi"
                       value={
-                        promotion?.type === "PercentageDiscount"
-                          ? `${promotion?.discountValue ?? 0}%`
-                          : formatCurrency(promotion?.discountValue)
+                        discountType === "PercentageDiscount"
+                          ? `${promotion.discountValue ?? 0}%`
+                          : formatCurrency(promotion.discountValue)
                       }
                     />
                     <InfoRow
-                      label="Lượt sử dụng"
-                      value={`${promotion?.usageCount ?? 0}/${promotion?.maxUsageCount ?? "∞"}`}
+                      label="Giảm tối đa"
+                      value={formatCurrency(promotion.maxDiscountValue)}
                     />
-                    <InfoRow label="Ngày tạo" value={formatDateTime(promotion?.createdAt)} />
+                    <InfoRow
+                      label="Giá trị đơn tối thiểu"
+                      value={formatCurrency(promotion.minOrderValue)}
+                    />
+                    <InfoRow
+                      label="Số lượng áp dụng tối thiểu"
+                      value={promotion.minAppliedQuantity ?? "-"}
+                    />
+                    <InfoRow
+                      label="Số lượt đã dùng"
+                      value={promotion.usageCount ?? 0}
+                    />
+                    <InfoRow
+                      label="Giới hạn sử dụng"
+                      value={promotion.usageLimit ?? "∞"}
+                    />
+                    <InfoRow
+                      label="Giới hạn mỗi khách"
+                      value={promotion.usagePerUser ?? "-"}
+                    />
+                    <InfoRow
+                      label="Cộng dồn khuyến mãi"
+                      value={promotion.isStackable ? "Có" : "Không"}
+                    />
+                    <InfoRow
+                      label="Logic sản phẩm điều kiện"
+                      value={getRequiredProductLogicLabel(promotion.requiredProductLogic)}
+                    />
+                    <InfoRow
+                      label="Số sản phẩm quà tặng được chọn"
+                      value={promotion.freeItemPickCount ?? "-"}
+                    />
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-slate-200 bg-white">
                   <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3 text-sm font-semibold text-[#334155]">
-                    Thời gian áp dụng
+                    Phạm vi và thời gian áp dụng
                   </div>
                   <div className="space-y-2 p-4">
-                    <InfoRow label="Bắt đầu" value={formatDateTime(promotion?.startDate)} />
-                    <InfoRow label="Kết thúc" value={formatDateTime(promotion?.endDate)} />
-                    <InfoRow label="Trạng thái" value={status.label} />
+                    <InfoRow label="Category ID" value={promotion.categoryId || "-"} />
+                    <InfoRow label="Brand ID" value={promotion.brandId || "-"} />
+                    <InfoRow label="Bắt đầu" value={formatDateTime(promotion.startDate)} />
+                    <InfoRow label="Kết thúc" value={formatDateTime(promotion.endDate)} />
+                    <InfoRow
+                      label="Đang bật"
+                      value={isActive ? "Có" : "Không"}
+                    />
+                    <InfoRow
+                      label="Đã hết hạn"
+                      value={promotion.isExpired ? "Có" : "Không"}
+                    />
+                    <InfoRow
+                      label="Ngày tạo"
+                      value={formatDateTime(promotion.createdAt)}
+                    />
+                    <InfoRow
+                      label="Cập nhật gần nhất"
+                      value={formatDateTime(promotion.updatedAt)}
+                    />
                   </div>
                 </div>
               </div>

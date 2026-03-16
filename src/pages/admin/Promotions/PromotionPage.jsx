@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { FiGift, FiPlus, FiPower, FiSearch } from "react-icons/fi";
+import {
+  FiGift,
+  FiPlus,
+  FiPower,
+  FiSearch,
+  FiTrash2,
+} from "react-icons/fi";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -39,7 +45,7 @@ export default function PromotionPage() {
   const [status, setStatus] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-  const [sortBy, setSortBy] = useState("Code or Name");
+  const [sortBy, setSortBy] = useState("CreatedAt");
   const [isDescending, setIsDescending] = useState(true);
   const [pageNumber, setPageNumber] = useState(0);
   const [pageSize] = useState(20);
@@ -99,6 +105,25 @@ export default function PromotionPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (promotionId) => {
+      const res = await apiService.delete(`/promotion/${promotionId}`);
+
+      if (res?.statusCode !== 200) {
+        throw new Error(res?.message || "Xóa khuyến mãi thất bại");
+      }
+
+      return res.value;
+    },
+    onSuccess: (message) => {
+      toast.success(message || "Đã xử lý xóa khuyến mãi");
+      queryClient.invalidateQueries({ queryKey: ["admin-promotions"] });
+    },
+    onError: (error) => {
+      toast.error(error?.message || "Xóa khuyến mãi thất bại");
+    },
+  });
+
   const handleSearch = () => {
     setPageNumber(0);
     setSearchTerm(query.trim());
@@ -110,7 +135,7 @@ export default function PromotionPage() {
     setStatus("");
     setFromDate("");
     setToDate("");
-    setSortBy("Code or Name");
+    setSortBy("CreatedAt");
     setIsDescending(true);
     setPageNumber(0);
   };
@@ -125,6 +150,16 @@ export default function PromotionPage() {
     }
   };
 
+  const handleDelete = (promotion) => {
+    const confirmed = window.confirm(
+      `Bạn có chắc muốn xóa khuyến mãi "${promotion.name}"?\n\nNếu khuyến mãi đã có lượt dùng, BE sẽ chuyển sang vô hiệu hóa thay vì xóa cứng.`,
+    );
+
+    if (confirmed) {
+      deleteMutation.mutate(promotion.id);
+    }
+  };
+
   const paddedRows = useMemo(() => {
     const real = rows.slice(0, pageSize);
     const missing = Math.max(0, pageSize - real.length);
@@ -132,7 +167,12 @@ export default function PromotionPage() {
   }, [rows, pageSize]);
 
   const hasActiveFilters =
-    searchTerm || status !== "" || fromDate || toDate || sortBy !== "Code or Name" || !isDescending;
+    searchTerm ||
+    status !== "" ||
+    fromDate ||
+    toDate ||
+    sortBy !== "CreatedAt" ||
+    !isDescending;
 
   return (
     <div className="font-[var(--font-inter)]">
@@ -149,7 +189,8 @@ export default function PromotionPage() {
             Quản lý khuyến mãi
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Tổng cộng <span className="font-semibold text-blue-600">{totalItems}</span> khuyến mãi
+            Tổng cộng <span className="font-semibold text-blue-600">{totalItems}</span>{" "}
+            khuyến mãi
           </p>
         </div>
 
@@ -321,16 +362,17 @@ export default function PromotionPage() {
                   <tr
                     key={promotion.id}
                     className="cursor-pointer transition-colors hover:bg-blue-50"
-                    onClick={() =>
-                      navigate(`/admin/promotions/${promotion.id}`, {
-                        state: { promotion },
-                      })
-                    }
+                    onClick={() => navigate(`/admin/promotions/${promotion.id}`)}
                   >
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-800">{promotion.name}</div>
+                      <div className="font-semibold text-slate-800">
+                        {promotion.name}
+                      </div>
                       <div className="mt-1 text-xs text-slate-500">
-                        Mã: <code className="rounded bg-slate-100 px-2 py-1">{promotion.code}</code>
+                        Mã:{" "}
+                        <code className="rounded bg-slate-100 px-2 py-1">
+                          {promotion.code || "-"}
+                        </code>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-700">
@@ -363,11 +405,7 @@ export default function PromotionPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() =>
-                            navigate(`/admin/promotions/${promotion.id}`, {
-                              state: { promotion },
-                            })
-                          }
+                          onClick={() => navigate(`/admin/promotions/${promotion.id}`)}
                           className="rounded border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                         >
                           Chi tiết
@@ -381,6 +419,16 @@ export default function PromotionPage() {
                         >
                           <FiPower size={12} />
                           Vô hiệu hóa
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => handleDelete(promotion)}
+                          className="inline-flex items-center gap-1 rounded border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <FiTrash2 size={12} />
+                          Xóa
                         </button>
                       </div>
                     </td>
