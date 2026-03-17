@@ -36,6 +36,8 @@ import CheckoutPage from "../pages/customer/CheckoutPage.jsx";
 import CustomerProductDetailPage from "../pages/customer/product/ProductDetailPage.jsx";
 import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
 import CustomPcBuilderPage from "../pages/customer/CustomPcBuilderPage.jsx";
+import CustomerPromotionPage from "../pages/customer/promotion/PromotionPage.jsx";
+import CustomerPromotionDetailPage from "../pages/customer/promotion/PromotionDetailPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 
@@ -52,6 +54,8 @@ export const router = createBrowserRouter([
       { path: "cart", element: <CartPage /> },
       { path: "checkout", element: <CheckoutPage /> },
       { path: "custom-pc-builder", element: <CustomPcBuilderPage /> },
+      { path: "promotions", element: <CustomerPromotionPage /> },
+      { path: "promotions/:promotionId", element: <CustomerPromotionDetailPage /> },
       { path: "products/search", element: <ProductSearchPage /> },
       { path: "products/:productId", element: <CustomerProductDetailPage /> }
     ]

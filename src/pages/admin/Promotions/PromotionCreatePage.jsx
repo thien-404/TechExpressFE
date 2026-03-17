@@ -16,13 +16,44 @@ import Breadcrumb from "../../../components/ui/Breadcrumb";
 import CategorySelect from "../../../components/ui/select/CategorySelect";
 import BrandSelect from "../../../components/ui/select/BrandSelect";
 import { apiService } from "../../../config/axios";
-import { cachePromotion, PROMOTION_REQUIRED_LOGIC_OPTIONS, PROMOTION_SCOPE_OPTIONS, PROMOTION_TYPE_OPTIONS } from "./promotionHelpers";
+import {
+  cachePromotion,
+  PROMOTION_REQUIRED_LOGIC_OPTIONS,
+  PROMOTION_SCOPE_OPTIONS,
+  PROMOTION_TYPE_OPTIONS,
+} from "./promotionHelpers";
 import PromotionProductSelector from "./PromotionProductSelector";
 
 const inputClass =
   "h-10 w-full rounded border border-slate-300 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all";
 
 const labelClass = "mb-1.5 block text-xs font-semibold text-slate-600";
+
+const padTwoDigits = (value) => String(value).padStart(2, "0");
+
+const formatDateTimeOffsetForApi = (value) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = padTwoDigits(date.getMonth() + 1);
+  const day = padTwoDigits(date.getDate());
+  const hours = padTwoDigits(date.getHours());
+  const minutes = padTwoDigits(date.getMinutes());
+  const seconds = padTwoDigits(date.getSeconds());
+
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffset = Math.abs(offsetMinutes);
+  const offsetHours = padTwoDigits(Math.floor(absoluteOffset / 60));
+  const offsetRemainMinutes = padTwoDigits(absoluteOffset % 60);
+
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetRemainMinutes}`;
+};
 
 const Field = ({ label, error, required = false, children }) => (
   <div>
@@ -122,21 +153,32 @@ export default function PromotionCreatePage() {
       requiredCount: form.requiredProducts.length,
       freeCount: form.freeProducts.length,
     }),
-    [form.appliedProducts.length, form.requiredProducts.length, form.freeProducts.length],
+    [
+      form.appliedProducts.length,
+      form.requiredProducts.length,
+      form.freeProducts.length,
+    ],
   );
 
   const validate = () => {
     const nextErrors = {};
+    const formattedStartDate = formatDateTimeOffsetForApi(form.startDate);
+    const formattedEndDate = formatDateTimeOffsetForApi(form.endDate);
 
     if (!form.name.trim()) nextErrors.name = "Tên khuyến mãi là bắt buộc";
-    if (!form.code.trim()) nextErrors.code = "Mã khuyến mãi là bắt buộc";
     if (!form.description.trim()) nextErrors.description = "Mô tả là bắt buộc";
     if (!form.startDate) nextErrors.startDate = "Vui lòng chọn ngày bắt đầu";
     if (!form.endDate) nextErrors.endDate = "Vui lòng chọn ngày kết thúc";
+    if (form.startDate && !formattedStartDate) {
+      nextErrors.startDate = "Ngày bắt đầu không đúng định dạng";
+    }
+    if (form.endDate && !formattedEndDate) {
+      nextErrors.endDate = "Ngày kết thúc không đúng định dạng";
+    }
 
-    if (form.startDate && form.endDate) {
-      const start = new Date(form.startDate);
-      const end = new Date(form.endDate);
+    if (formattedStartDate && formattedEndDate) {
+      const start = new Date(formattedStartDate);
+      const end = new Date(formattedEndDate);
       if (end <= start) {
         nextErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
       }
@@ -146,12 +188,12 @@ export default function PromotionCreatePage() {
       nextErrors.discountValue = "Giá trị khuyến mãi phải lớn hơn 0";
     }
 
-    if (isPercentageDiscount && Number(form.discountValue) > 100) {
-      nextErrors.discountValue = "Giảm theo phần trăm không được vượt quá 100";
+    if (isPercentageDiscount && Number(form.discountValue) >= 100) {
+      nextErrors.discountValue = "Giảm theo phần trăm phải nhỏ hơn 100";
     }
 
     if (form.maxDiscountValue !== "" && Number(form.maxDiscountValue) < 0) {
-      nextErrors.maxDiscountValue = "Giá trị giảm tối đa không hợp lệ";
+      nextErrors.maxDiscountValue = "Giảm tối đa không hợp lệ";
     }
 
     if (form.minOrderValue !== "" && Number(form.minOrderValue) < 0) {
@@ -182,12 +224,26 @@ export default function PromotionCreatePage() {
       nextErrors.maxUsagePerUser = "Số lượt dùng tối đa mỗi khách phải từ 1";
     }
 
+    if (
+      form.maxUsageCount !== "" &&
+      form.maxUsagePerUser !== "" &&
+      Number(form.maxUsagePerUser) > Number(form.maxUsageCount)
+    ) {
+      nextErrors.maxUsagePerUser =
+        "Số lượt dùng mỗi khách không được lớn hơn tổng số lượt dùng";
+    }
+
     form.requiredProducts.forEach((item, index) => {
       if (Number(item.minQuantity) < 1) {
-        nextErrors[`requiredProducts_${index}`] = "Số lượng tối thiểu phải từ 1";
+        nextErrors[`requiredProducts_${index}`] =
+          "Số lượng tối thiểu của sản phẩm điều kiện phải từ 1";
       }
-      if (item.maxQuantity !== "" && Number(item.maxQuantity) < Number(item.minQuantity)) {
-        nextErrors[`requiredProducts_${index}`] = "Số lượng tối đa phải lớn hơn hoặc bằng số lượng tối thiểu";
+      if (
+        item.maxQuantity !== "" &&
+        Number(item.maxQuantity) <= Number(item.minQuantity)
+      ) {
+        nextErrors[`requiredProducts_${index}`] =
+          "Số lượng tối đa phải lớn hơn số lượng tối thiểu";
       }
     });
 
@@ -198,10 +254,15 @@ export default function PromotionCreatePage() {
       if (Number(form.freeItemPickCount) < 1) {
         nextErrors.freeItemPickCount = "Số lượng sản phẩm được chọn phải từ 1";
       }
+      if (Number(form.freeItemPickCount) > form.freeProducts.length) {
+        nextErrors.freeItemPickCount =
+          "Số lượng sản phẩm được chọn không được vượt quá số sản phẩm tặng";
+      }
 
       form.freeProducts.forEach((item, index) => {
         if (Number(item.quantity) < 1) {
-          nextErrors[`freeProducts_${index}`] = "Số lượng tặng phải từ 1";
+          nextErrors[`freeProducts_${index}`] =
+            "Số lượng tặng của mỗi sản phẩm phải từ 1";
         }
       });
     }
@@ -212,38 +273,48 @@ export default function PromotionCreatePage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const startDate = formatDateTimeOffsetForApi(form.startDate);
+      const endDate = formatDateTimeOffsetForApi(form.endDate);
+      const requiredProducts = form.requiredProducts.map((item) => ({
+        productId: item.productId,
+        minQuantity: Number(item.minQuantity),
+        maxQuantity: item.maxQuantity === "" ? null : Number(item.maxQuantity),
+      }));
+
       const payload = {
         name: form.name.trim(),
-        code: form.code.trim(),
+        code: form.code.trim() || null,
         description: form.description.trim(),
         type: form.type,
         scope: form.scope,
-        discountValue: needsDiscountValue ? Number(form.discountValue) : 0,
-        maxDiscountValue: form.maxDiscountValue === "" ? null : Number(form.maxDiscountValue),
-        minOrderValue: form.minOrderValue === "" ? null : Number(form.minOrderValue),
-        requiredProducts: form.requiredProducts.map((item) => ({
-          productId: item.productId,
-          minQuantity: Number(item.minQuantity),
-          maxQuantity: item.maxQuantity === "" ? null : Number(item.maxQuantity),
-        })),
-        requiredProductLogic: form.requiredProductLogic,
+        discountValue: needsDiscountValue ? Number(form.discountValue) : null,
+        maxDiscountValue:
+          form.maxDiscountValue === "" ? null : Number(form.maxDiscountValue),
+        minOrderValue:
+          form.minOrderValue === "" ? null : Number(form.minOrderValue),
+        requiredProducts,
+        requiredProductLogic:
+          requiredProducts.length > 1 ? form.requiredProductLogic : null,
         freeProducts: form.freeProducts.map((item) => ({
           productId: item.productId,
           quantity: Number(item.quantity),
         })),
-        freeItemPickCount: isFreeItem ? Number(form.freeItemPickCount) : 0,
+        freeItemPickCount: isFreeItem ? Number(form.freeItemPickCount) : null,
         categoryId: needsCategory ? form.categoryId : null,
         brandId: needsBrand ? form.brandId : null,
         appliedProducts: needsAppliedProducts
           ? form.appliedProducts.map((item) => item.productId)
           : [],
         minAppliedQuantity:
-          form.minAppliedQuantity === "" ? null : Number(form.minAppliedQuantity),
-        maxUsageCount: form.maxUsageCount === "" ? null : Number(form.maxUsageCount),
+          needsAppliedProducts && form.minAppliedQuantity !== ""
+            ? Number(form.minAppliedQuantity)
+            : null,
+        maxUsageCount:
+          form.maxUsageCount === "" ? null : Number(form.maxUsageCount),
         maxUsagePerUser:
           form.maxUsagePerUser === "" ? null : Number(form.maxUsagePerUser),
-        startDate: form.startDate,
-        endDate: form.endDate,
+        startDate,
+        endDate,
         isStackable: form.isStackable,
       };
 
@@ -258,7 +329,7 @@ export default function PromotionCreatePage() {
     onSuccess: (promotion) => {
       cachePromotion(promotion);
       toast.success("Tạo khuyến mãi thành công");
-      navigate(`/admin/promotions/${promotion.id}`, { state: { promotion } });
+      navigate(`/admin/promotions/${promotion.id}`);
     },
     onError: (error) => {
       toast.error(error?.message || "Tạo khuyến mãi thất bại");
@@ -319,13 +390,13 @@ export default function PromotionCreatePage() {
               />
             </Field>
 
-            <Field label="Mã khuyến mãi" error={errors.code} required>
+            <Field label="Mã khuyến mãi" error={errors.code}>
               <input
                 type="text"
                 value={form.code}
                 onChange={(e) => setField("code", e.target.value.toUpperCase())}
                 className={inputClass}
-                placeholder="Ví dụ: RAMT3"
+                placeholder="Để trống nếu không cần nhập mã"
               />
             </Field>
 
@@ -393,7 +464,7 @@ export default function PromotionCreatePage() {
             {needsDiscountValue && (
               <Field
                 label={
-                  form.type === "FixedPrice" ? "Giá bán cố định" : "Giá trị khuyến mãi"
+                  form.type === "FixedPrice" ? "Giá đồng giá" : "Giá trị khuyến mãi"
                 }
                 error={errors.discountValue}
                 required
@@ -548,8 +619,8 @@ export default function PromotionCreatePage() {
             </Field>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Đã chọn {summary.requiredCount} sản phẩm điều kiện, {summary.appliedCount} sản phẩm áp dụng
-              và {summary.freeCount} sản phẩm tặng.
+              Đã chọn {summary.requiredCount} sản phẩm điều kiện, {summary.appliedCount} sản phẩm áp dụng và{" "}
+              {summary.freeCount} sản phẩm tặng.
             </div>
           </div>
         </Section>

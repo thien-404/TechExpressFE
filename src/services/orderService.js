@@ -2,7 +2,7 @@ import { apiService } from "../config/axios";
 
 function normalizeEnvelope(response) {
   const statusCode = response?.statusCode ?? response?.status;
-  const succeeded = statusCode === 200;
+  const succeeded = statusCode >= 200 && statusCode < 300;
 
   return {
     succeeded,
