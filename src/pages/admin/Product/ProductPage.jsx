@@ -196,7 +196,7 @@ export default function ProductPage() {
       />
 
       {/* Header */}
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-[#334155]">
             Quản lý sản phẩm

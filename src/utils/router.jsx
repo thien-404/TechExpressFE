@@ -19,6 +19,7 @@ import StaffCreatePage from "../pages/admin/Users/StaffCreatePage.jsx";
 import ProductPage from "../pages/admin/Product/ProductPage.jsx";
 import ProductDetailPage from "../pages/admin/Product/ProductDetailPage.jsx";
 import ProductCreatePage from "../pages/admin/Product/ProductCreatePage.jsx";
+import PcCreatePage from "../pages/admin/Product/PcCreatePage.jsx";
 import ProductUpdatePage from "../pages/admin/Product/ProductUpdatePage.jsx";
 import PromotionPage from "../pages/admin/Promotions/PromotionPage.jsx";
 import PromotionCreatePage from "../pages/admin/Promotions/PromotionCreatePage.jsx";
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       // Product Management
       { path: "products", element: <ProductPage /> },
       { path: "products/create", element: <ProductCreatePage /> },
+      { path: "products/pc-create", element: <PcCreatePage /> },
       { path: "products/:productId", element: <ProductDetailPage /> },
       { path: "products/:productId/edit", element: <ProductUpdatePage /> },
       { path: "promotions", element: <PromotionPage /> },

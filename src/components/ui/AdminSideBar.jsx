@@ -144,7 +144,7 @@ export default function AdminSideBar({ open, onClose }) {
                 <DropdownItem to="/admin/products" icon={Package} onClick={onClose}>
                   Danh sách sản phẩm
                 </DropdownItem>
-                <DropdownItem to="/admin/create" icon={PcCase} onClick={onClose}>
+                <DropdownItem to="/admin/products/pc-create" icon={PcCase} onClick={onClose}>
                   Tạo PC
                 </DropdownItem>
                 <DropdownItem to="/admin/orders" icon={ShoppingCart} onClick={onClose}>
