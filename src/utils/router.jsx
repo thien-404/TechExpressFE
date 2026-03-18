@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 // Layouts
+import CartAccessRoute from "../components/auth/CartAccessRoute.jsx";
 import ProtectedRoute from "../components/auth/ProtectedRoute.jsx";
 import CustomerLayout from "../layouts/CustomerLayout";
 import AdminLayout from "../layouts/AdminLayout";
@@ -52,8 +53,8 @@ export const router = createBrowserRouter([
       { path: "reset-password", element: <ResetPasswordPage /> },
       { path: "products", element: <ProductListingPage /> },
       { path: "account", element: <ProtectedRoute><AccountPage /></ProtectedRoute> },
-      { path: "cart", element: <CartPage /> },
-      { path: "checkout", element: <CheckoutPage /> },
+      { path: "cart", element: <CartAccessRoute><CartPage /></CartAccessRoute> },
+      { path: "checkout", element: <CartAccessRoute><CheckoutPage /></CartAccessRoute> },
       { path: "custom-pc-builder", element: <CustomPcBuilderPage /> },
       { path: "promotions", element: <CustomerPromotionPage /> },
       { path: "promotions/:promotionId", element: <CustomerPromotionDetailPage /> },

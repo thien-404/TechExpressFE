@@ -1,192 +1,300 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react'
-import { FiChevronDown, FiSearch, FiFolder, FiX, FiChevronRight } from 'react-icons/fi'
+import React, { useEffect, useMemo, useState } from "react";
+import { FiChevronDown, FiChevronRight, FiFolder, FiLoader, FiSearch, FiX } from "react-icons/fi";
+
+import { apiService } from "../../../config/axios";
 
 /* =========================
  * CATEGORY SELECT WITH MODAL
  * ========================= */
-export default function CategorySelect({ 
-  value, 
-  onChange, 
+export default function CategorySelect({
+  value,
+  onChange,
   categories = [],
-  placeholder = "Chọn danh mục" 
+  placeholder = "Chọn danh mục",
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [expandedCategories, setExpandedCategories] = useState(new Set())
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [expandedCategories, setExpandedCategories] = useState(new Set());
+  const [page, setPage] = useState(1);
+  const [pageItems, setPageItems] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [selectedCategoryData, setSelectedCategoryData] = useState(null);
 
-  /* =========================
-   * BUILD HIERARCHICAL STRUCTURE
-   * ========================= */
-  const hierarchicalCategories = useMemo(() => {
-    const categoryMap = new Map()
-    const rootCategories = []
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
 
-    // First pass: create map
-    categories.forEach(cat => {
-      categoryMap.set(cat.id, { ...cat, children: [] })
-    })
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-    // Second pass: organize tree
-    categories.forEach(cat => {
-      if (cat.parentCategoryId) {
-        const parent = categoryMap.get(cat.parentCategoryId)
-        if (parent) {
-          parent.children.push(categoryMap.get(cat.id))
-        } else {
-          rootCategories.push(categoryMap.get(cat.id))
-        }
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearchQuery]);
+
+  useEffect(() => {
+    setExpandedCategories(new Set());
+  }, [pageItems]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!isOpen) return undefined;
+
+    const fetchCategories = async () => {
+      setLoading(true);
+
+      const res = await apiService.get("/Category", {
+        SearchName: debouncedSearchQuery || undefined,
+        Page: page,
+      });
+
+      if (ignore) return;
+
+      if (res?.statusCode === 200) {
+        setPageItems(Array.isArray(res.value?.items) ? res.value.items : []);
+        setTotalPages(Math.max(Number(res.value?.totalPages || 1), 1));
+        setTotalCount(Number(res.value?.totalCount || 0));
       } else {
-        rootCategories.push(categoryMap.get(cat.id))
+        setPageItems([]);
+        setTotalPages(1);
+        setTotalCount(0);
       }
-    })
 
-    return rootCategories
-  }, [categories])
+      setLoading(false);
+    };
 
-  /* =========================
-   * FLATTEN FOR DISPLAY
-   * ========================= */
-  const displayCategories = useMemo(() => {
-    const flattened = []
+    fetchCategories();
 
-    const flatten = (cats, level = 0) => {
-      cats.forEach(cat => {
-        // Filter by search
-        const matchesSearch = !searchQuery.trim() || 
-          cat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          cat.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedSearchQuery, isOpen, page]);
 
-        if (matchesSearch) {
-          flattened.push({ ...cat, level })
-        }
+  useEffect(() => {
+    let ignore = false;
 
-        if (cat.children && cat.children.length > 0 && expandedCategories.has(cat.id)) {
-          flatten(cat.children, level + 1)
-        }
-      })
+    if (!value) {
+      setSelectedCategoryData(null);
+      return undefined;
     }
 
-    flatten(hierarchicalCategories)
-    return flattened
-  }, [hierarchicalCategories, expandedCategories, searchQuery])
+    const selectedFromKnownLists =
+      pageItems.find((category) => category.id === value) ||
+      categories.find((category) => category.id === value);
 
-  /* =========================
-   * SELECTED CATEGORY
-   * ========================= */
-  const selectedCategory = useMemo(() => {
-    return categories.find(cat => cat.id === value)
-  }, [categories, value])
+    if (selectedFromKnownLists) {
+      setSelectedCategoryData(selectedFromKnownLists);
+      return undefined;
+    }
 
-  /* =========================
-   * HANDLERS
-   * ========================= */
-  const handleSelect = (categoryId) => {
-    onChange(categoryId)
-    setIsOpen(false)
-    setSearchQuery('')
-    setExpandedCategories(new Set())
-  }
+    const fetchSelectedCategory = async () => {
+      const res = await apiService.get(`/Category/${value}`);
 
-  const handleClear = (e) => {
-    e.stopPropagation()
-    onChange('')
-  }
+      if (ignore) return;
 
-  const toggleCategory = (categoryId, e) => {
-    e.stopPropagation()
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId)
+      if (res?.statusCode === 200 && res.value) {
+        setSelectedCategoryData(res.value);
       } else {
-        newSet.add(categoryId)
+        setSelectedCategoryData(null);
       }
-      return newSet
-    })
-  }
+    };
+
+    fetchSelectedCategory();
+
+    return () => {
+      ignore = true;
+    };
+  }, [categories, pageItems, value]);
+
+  const activeCategories = useMemo(() => {
+    if (pageItems.length > 0 || isOpen) return pageItems;
+    return categories;
+  }, [categories, isOpen, pageItems]);
+
+  const hierarchicalCategories = useMemo(() => {
+    const categoryMap = new Map();
+    const rootCategories = [];
+
+    activeCategories.forEach((category) => {
+      categoryMap.set(category.id, { ...category, children: [] });
+    });
+
+    activeCategories.forEach((category) => {
+      const currentCategory = categoryMap.get(category.id);
+
+      if (category.parentCategoryId) {
+        const parentCategory = categoryMap.get(category.parentCategoryId);
+
+        if (parentCategory) {
+          parentCategory.children.push(currentCategory);
+        } else {
+          rootCategories.push(currentCategory);
+        }
+      } else {
+        rootCategories.push(currentCategory);
+      }
+    });
+
+    return rootCategories;
+  }, [activeCategories]);
+
+  const displayCategories = useMemo(() => {
+    const flattened = [];
+
+    const flatten = (items, level = 0) => {
+      items.forEach((category) => {
+        flattened.push({ ...category, level });
+
+        if (category.children?.length > 0 && expandedCategories.has(category.id)) {
+          flatten(category.children, level + 1);
+        }
+      });
+    };
+
+    flatten(hierarchicalCategories);
+    return flattened;
+  }, [expandedCategories, hierarchicalCategories]);
+
+  const selectedCategory = useMemo(() => {
+    return (
+      pageItems.find((category) => category.id === value) ||
+      categories.find((category) => category.id === value) ||
+      selectedCategoryData
+    );
+  }, [categories, pageItems, selectedCategoryData, value]);
+
+  const openModal = () => {
+    setIsOpen(true);
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setPage(1);
+    setExpandedCategories(new Set());
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    setExpandedCategories(new Set());
+  };
+
+  const handleSelect = (categoryId) => {
+    const nextSelectedCategory =
+      activeCategories.find((category) => category.id === categoryId) ||
+      selectedCategoryData;
+
+    onChange(categoryId);
+    if (nextSelectedCategory) {
+      setSelectedCategoryData(nextSelectedCategory);
+    }
+    closeModal();
+  };
+
+  const handleClear = (event) => {
+    event.stopPropagation();
+    setSelectedCategoryData(null);
+    onChange("");
+  };
+
+  const toggleCategory = (categoryId, event) => {
+    event.stopPropagation();
+
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+
+      return next;
+    });
+  };
 
   const expandAll = () => {
-    const allParentIds = categories
-      .filter(cat => categories.some(c => c.parentCategoryId === cat.id))
-      .map(cat => cat.id)
-    setExpandedCategories(new Set(allParentIds))
-  }
+    const allParentIds = activeCategories
+      .filter((category) => activeCategories.some((item) => item.parentCategoryId === category.id))
+      .map((category) => category.id);
+
+    setExpandedCategories(new Set(allParentIds));
+  };
 
   const collapseAll = () => {
-    setExpandedCategories(new Set())
-  }
+    setExpandedCategories(new Set());
+  };
 
   return (
     <div className="relative">
-      {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
-        className="h-10 w-full rounded border border-slate-200 px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all bg-white text-left flex items-center justify-between"
+        onClick={openModal}
+        className="flex h-10 w-full items-center justify-between rounded border border-slate-200 bg-white px-3 text-left text-sm outline-none transition-all focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
       >
-        <span className={selectedCategory ? 'text-slate-700' : 'text-slate-400'}>
+        <span className={selectedCategory ? "text-slate-700" : "text-slate-400"}>
           {selectedCategory?.name || placeholder}
         </span>
-        
+
         <div className="flex items-center gap-1">
-          {selectedCategory && (
+          {selectedCategory ? (
             <div
               onClick={handleClear}
-              className="p-0.5 hover:bg-slate-100 rounded transition-colors cursor-pointer"
+              className="cursor-pointer rounded p-0.5 transition-colors hover:bg-slate-100"
             >
               <FiX size={14} className="text-slate-400" />
             </div>
-          )}
+          ) : null}
           <FiChevronDown size={16} className="text-slate-400" />
         </div>
       </button>
 
-      {/* Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col shadow-xl">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-200">
+      {isOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
+            <div className="border-b border-slate-200 px-6 py-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-800">
-                  Chọn danh mục
-                </h3>
+                <h3 className="text-lg font-semibold text-slate-800">Chọn danh mục</h3>
                 <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-lg p-2 transition-colors hover:bg-slate-100"
                 >
                   <FiX size={20} className="text-slate-500" />
                 </button>
               </div>
             </div>
 
-            {/* Search & Controls */}
-            <div className="px-6 py-4 border-b border-slate-200 space-y-3">
-              {/* Search */}
+            <div className="space-y-3 border-b border-slate-200 px-6 py-4">
               <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <FiSearch
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Tìm kiếm theo tên danh mục..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                   autoFocus
                 />
               </div>
 
-              {/* Expand/Collapse */}
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={expandAll}
-                  className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
                   <FiChevronDown size={16} />
                   Mở rộng tất cả
                 </button>
                 <button
+                  type="button"
                   onClick={collapseAll}
-                  className="flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-sm font-medium"
+                  className="flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                 >
                   <FiChevronRight size={16} />
                   Thu gọn tất cả
@@ -194,9 +302,13 @@ export default function CategorySelect({
               </div>
             </div>
 
-            {/* Category List */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {displayCategories.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-slate-500">
+                  <FiLoader size={16} className="animate-spin" />
+                  Đang tải danh mục...
+                </div>
+              ) : displayCategories.length === 0 ? (
                 <div className="py-12 text-center text-sm text-slate-500">
                   Không tìm thấy danh mục
                 </div>
@@ -205,19 +317,19 @@ export default function CategorySelect({
                   {displayCategories.map((category) => (
                     <div
                       key={category.id}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 transition-colors ${
                         value === category.id
-                          ? 'bg-blue-50 text-blue-700 font-medium'
-                          : 'hover:bg-slate-50 text-slate-700'
+                          ? "bg-blue-50 font-medium text-blue-700"
+                          : "text-slate-700 hover:bg-slate-50"
                       }`}
                       style={{ paddingLeft: `${12 + category.level * 24}px` }}
                       onClick={() => handleSelect(category.id)}
                     >
-                      {/* Expand/Collapse Button */}
-                      {category.children && category.children.length > 0 ? (
+                      {category.children?.length > 0 ? (
                         <button
-                          onClick={(e) => toggleCategory(category.id, e)}
-                          className="p-1 hover:bg-slate-200 rounded transition flex-shrink-0"
+                          type="button"
+                          onClick={(event) => toggleCategory(category.id, event)}
+                          className="flex-shrink-0 rounded p-1 transition hover:bg-slate-200"
                         >
                           {expandedCategories.has(category.id) ? (
                             <FiChevronDown size={16} className="text-slate-600" />
@@ -226,114 +338,99 @@ export default function CategorySelect({
                           )}
                         </button>
                       ) : (
-                        <div className="w-6" /> // Spacer
+                        <div className="w-6" />
                       )}
 
-                      {/* Icon */}
                       <FiFolder size={16} className="flex-shrink-0 text-slate-400" />
 
-                      {/* Name & Description */}
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          {category.level > 0 && (
-                            <span className="text-slate-300">└─</span>
-                          )}
+                          {category.level > 0 ? <span className="text-slate-300">└─</span> : null}
                           <span className="truncate">{category.name}</span>
-                          {category.children && category.children.length > 0 && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium flex-shrink-0">
+                          {category.children?.length > 0 ? (
+                            <span className="flex-shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
                               {category.children.length}
                             </span>
-                          )}
+                          ) : null}
                         </div>
-                        {category.description && (
-                          <div className="text-xs text-slate-500 truncate mt-0.5">
+                        {category.description ? (
+                          <div className="mt-0.5 truncate text-xs text-slate-500">
                             {category.description}
                           </div>
-                        )}
+                        ) : null}
                       </div>
 
-                      {/* Selected Indicator */}
-                      {value === category.id && (
-                        <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                      )}
+                      {value === category.id ? (
+                        <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
+                      ) : null}
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{displayCategories.length} danh mục</span>
-                {selectedCategory && (
-                  <span className="font-medium text-slate-700">
-                    Đã chọn: {selectedCategory.name}
+            <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center justify-between gap-4 text-xs text-slate-500">
+                  <span>{totalCount} danh mục</span>
+                  {selectedCategory ? (
+                    <span className="font-medium text-slate-700">Đã chọn: {selectedCategory.name}</span>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 sm:justify-end">
+                  <span className="text-xs text-slate-500">
+                    Trang {Math.min(page, totalPages)}/{totalPages}
                   </span>
-                )}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                      disabled={loading || page <= 1}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Trang trước
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={loading || page >= totalPages}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Trang sau
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
-  )
+  );
 }
 
 /* =========================
  * USAGE EXAMPLE
  * ========================= */
 export function CategorySelectExample() {
-  const [selectedCategory, setSelectedCategory] = useState('')
-
-  const mockCategories = [
-    {
-      id: '1',
-      name: 'Linh kiện máy tính',
-      parentCategoryId: null,
-      description: 'Linh kiện và phần cứng máy tính'
-    },
-    {
-      id: '2',
-      name: 'CPU',
-      parentCategoryId: '1',
-      description: 'Bộ vi xử lý'
-    },
-    {
-      id: '3',
-      name: 'RAM',
-      parentCategoryId: '1',
-      description: 'Bộ nhớ RAM'
-    },
-    {
-      id: '4',
-      name: 'Thiết bị ngoại vi',
-      parentCategoryId: null,
-      description: 'Thiết bị ngoại vi cho máy tính'
-    },
-    {
-      id: '5',
-      name: 'Màn hình',
-      parentCategoryId: '4',
-      description: 'Màn hình máy tính'
-    },
-  ]
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   return (
-    <div className="p-8 max-w-md mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Category Select Modal Demo</h2>
-      
+    <div className="mx-auto max-w-md p-8">
+      <h2 className="mb-4 text-xl font-semibold">Category Select Modal Demo</h2>
+
       <CategorySelect
         value={selectedCategory}
         onChange={setSelectedCategory}
-        categories={mockCategories}
       />
 
-      {selectedCategory && (
-        <div className="mt-4 p-3 bg-blue-50 rounded text-sm">
-          Selected: <strong>{mockCategories.find(c => c.id === selectedCategory)?.name}</strong>
+      {selectedCategory ? (
+        <div className="mt-4 rounded bg-blue-50 p-3 text-sm">
+          Selected category id: <strong>{selectedCategory}</strong>
         </div>
-      )}
+      ) : null}
     </div>
-  )
+  );
 }

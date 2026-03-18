@@ -3,19 +3,20 @@ import { useState } from "react";
 import { Search, User, ShoppingCart, Menu } from "lucide-react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
-import { useAuth } from "../../store/authContext";
+import useCartAccess from "../../hooks/useCartAccess";
 import { selectCartItemCount } from "../../store/slices/cartSlice";
 
 export default function Header({ onToggleCategorySidebar }) {
-  const { user } = useAuth();
+  const { user, loading, canUseCart } = useCartAccess();
   const itemCount = useSelector(selectCartItemCount);
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
+  const showCartEntryPoints = !loading && canUseCart;
 
   const handleSearchSubmit = () => {
     const trimmedKeyword = keyword.trim();
     if (!trimmedKeyword) {
-      toast.info("Vui lòng nhập từ khóa tìm kiếm");
+      toast.info("Vui long nhap tu khoa tim kiem");
       return;
     }
 
@@ -62,19 +63,21 @@ export default function Header({ onToggleCategorySidebar }) {
                 <User size={20} />
               </NavLink>
 
-              <NavLink to="/cart" className="relative text-white">
-                <ShoppingCart size={20} />
-                <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-yellow-400 text-black text-xs flex items-center justify-center font-bold">
-                  {itemCount}
-                </span>
-              </NavLink>
+              {showCartEntryPoints ? (
+                <NavLink to="/cart" className="relative text-white">
+                  <ShoppingCart size={20} />
+                  <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-yellow-400 text-black text-xs flex items-center justify-center font-bold">
+                    {itemCount}
+                  </span>
+                </NavLink>
+              ) : null}
             </div>
           </div>
 
           <div className="flex bg-white rounded-sm overflow-hidden">
             <input
               type="text"
-              placeholder="Bạn cần tìm gì?"
+              placeholder="Ban can tim gi?"
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={handleSearchKeyDown}
@@ -114,7 +117,7 @@ export default function Header({ onToggleCategorySidebar }) {
             <div className="flex bg-white rounded-sm overflow-hidden">
               <input
                 type="text"
-                placeholder="bạn cần tìm gì?"
+                placeholder="Ban can tim gi?"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -140,21 +143,23 @@ export default function Header({ onToggleCategorySidebar }) {
           >
             <User size={18} />
             <div className="leading-tight">
-              <div className="text-xs">Tài Khoản</div>
-              <div className="font-medium">{user?.email || "Đăng nhập"}</div>
+              <div className="text-xs">Tai Khoan</div>
+              <div className="font-medium">{user?.email || "Dang nhap"}</div>
             </div>
           </NavLink>
 
-          <NavLink
-            to="/cart"
-            className="relative flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-md"
-          >
-            <ShoppingCart size={18} />
-            <span className="text-sm font-medium">Giỏ hàng</span>
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-yellow-400 text-black text-xs flex items-center justify-center font-bold">
-              {itemCount}
-            </span>
-          </NavLink>
+          {showCartEntryPoints ? (
+            <NavLink
+              to="/cart"
+              className="relative flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-md"
+            >
+              <ShoppingCart size={18} />
+              <span className="text-sm font-medium">Gio hang</span>
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-yellow-400 text-black text-xs flex items-center justify-center font-bold">
+                {itemCount}
+              </span>
+            </NavLink>
+          ) : null}
         </div>
       </div>
 
@@ -163,9 +168,11 @@ export default function Header({ onToggleCategorySidebar }) {
           <NavLink className="hover:text-yellow-400" to="/custom-pc-builder">
             CUSTOM PC
           </NavLink>
-          <NavLink className="hover:text-yellow-400" to="/checkout">
-            THANH TOAN
-          </NavLink>
+          {showCartEntryPoints ? (
+            <NavLink className="hover:text-yellow-400" to="/checkout">
+              THANH TOAN
+            </NavLink>
+          ) : null}
           <NavLink className="hover:text-yellow-400" to="/installment">
             TRA GOP
           </NavLink>

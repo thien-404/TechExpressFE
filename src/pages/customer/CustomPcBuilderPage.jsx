@@ -20,9 +20,10 @@ import {
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { apiService } from "../../config/axios";
+import useCartAccess from "../../hooks/useCartAccess";
 import { customPcService } from "../../services/customPcService";
-import { useAuth } from "../../store/authContext";
 import { addCartItem } from "../../store/slices/cartSlice";
+import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
 import { getCustomPcGuestSessionId, getOrCreateCustomPcGuestSessionId } from "../../utils/customPcSession";
 
 const PAGE_SIZE = 12;
@@ -224,7 +225,7 @@ const groupItemsByCategory = (items = [], categories = []) => {
 export default function CustomPcBuilderPage() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
-  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { isAuthenticated, user, loading: authLoading, canUseCart } = useCartAccess();
 
   const [guestSessionId, setGuestSessionId] = useState(() => (isAuthenticated ? null : getCustomPcGuestSessionId()));
   const [activeBuildId, setActiveBuildId] = useState("");
@@ -465,6 +466,10 @@ export default function CustomPcBuilderPage() {
 
   const addBuildToCartMutation = useMutation({
     mutationFn: async () => {
+      if (!canUseCart) {
+        throw new Error(CART_ACCESS_DENIED_MESSAGE);
+      }
+
       if (!activeBuild?.items?.length) throw new Error("Cấu hình hiện tại chưa có sản phẩm để thêm vào giỏ");
 
       for (const item of activeBuild.items) {
@@ -495,6 +500,15 @@ export default function CustomPcBuilderPage() {
       toast.error(mutationError?.message || mutationError || "Không thể thêm cấu hình vào giỏ hàng");
     },
   });
+
+  const handleAddBuildToCart = () => {
+    if (!canUseCart) {
+      toast.info(CART_ACCESS_DENIED_MESSAGE);
+      return;
+    }
+
+    addBuildToCartMutation.mutate();
+  };
 
   const openSlot = (slot) => {
     if (!activeBuildSummary) {
@@ -599,7 +613,7 @@ export default function CustomPcBuilderPage() {
                 >
                   <RefreshCw size={16} />
                   Tải lại
-                </button>
+                  </button>
                 <button
                   type="button"
                   onClick={() => checkCompatibilityMutation.mutate()}
@@ -609,15 +623,17 @@ export default function CustomPcBuilderPage() {
                   {checkCompatibilityMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                   Kiểm tra tương thích
                 </button>
-                <button
-                  type="button"
-                  onClick={() => addBuildToCartMutation.mutate()}
+                {canUseCart ? (
+                  <button
+                    type="button"
+                    onClick={handleAddBuildToCart}
                   disabled={addBuildToCartMutation.isPending || !activeBuild?.items?.length}
                   className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                   {addBuildToCartMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />}
                   Thêm tất cả vào giỏ
-                </button>
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
