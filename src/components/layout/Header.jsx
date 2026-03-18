@@ -6,6 +6,20 @@ import { toast } from "sonner";
 import useCartAccess from "../../hooks/useCartAccess";
 import { selectCartItemCount } from "../../store/slices/cartSlice";
 
+const HEADER_COPY = {
+  searchRequired: "Vui lòng nhập từ khóa tìm kiếm",
+  searchPlaceholder: "Bạn cần tìm gì?",
+  account: "Tài Khoản",
+  login: "Đăng nhập",
+  cart: "Giỏ hàng",
+  checkout: "THANH TOÁN",
+  installment: "TRẢ GÓP",
+  contact: "LIÊN HỆ",
+  support: "HỖ TRỢ KHÁCH HÀNG",
+  library: "THƯ VIỆN",
+  careers: "TUYỂN DỤNG",
+};
+
 export default function Header({ onToggleCategorySidebar }) {
   const { user, loading, canUseCart } = useCartAccess();
   const itemCount = useSelector(selectCartItemCount);
@@ -16,7 +30,7 @@ export default function Header({ onToggleCategorySidebar }) {
   const handleSearchSubmit = () => {
     const trimmedKeyword = keyword.trim();
     if (!trimmedKeyword) {
-      toast.info("Vui long nhap tu khoa tim kiem");
+      toast.info(HEADER_COPY.searchRequired);
       return;
     }
 
@@ -77,7 +91,7 @@ export default function Header({ onToggleCategorySidebar }) {
           <div className="flex bg-white rounded-sm overflow-hidden">
             <input
               type="text"
-              placeholder="Ban can tim gi?"
+              placeholder={HEADER_COPY.searchPlaceholder}
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               onKeyDown={handleSearchKeyDown}
@@ -115,12 +129,12 @@ export default function Header({ onToggleCategorySidebar }) {
 
           <div className="flex-1">
             <div className="flex bg-white rounded-sm overflow-hidden">
-              <input
-                type="text"
-                placeholder="Ban can tim gi?"
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                onKeyDown={handleSearchKeyDown}
+            <input
+              type="text"
+              placeholder={HEADER_COPY.searchPlaceholder}
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              onKeyDown={handleSearchKeyDown}
                 className="flex-1 px-4 py-2 text-sm outline-none"
               />
               <button
@@ -143,8 +157,8 @@ export default function Header({ onToggleCategorySidebar }) {
           >
             <User size={18} />
             <div className="leading-tight">
-              <div className="text-xs">Tai Khoan</div>
-              <div className="font-medium">{user?.email || "Dang nhap"}</div>
+              <div className="text-xs">{HEADER_COPY.account}</div>
+              <div className="font-medium">{user?.email || HEADER_COPY.login}</div>
             </div>
           </NavLink>
 
@@ -154,7 +168,7 @@ export default function Header({ onToggleCategorySidebar }) {
               className="relative flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-3 py-2 rounded-md"
             >
               <ShoppingCart size={18} />
-              <span className="text-sm font-medium">Gio hang</span>
+              <span className="text-sm font-medium">{HEADER_COPY.cart}</span>
               <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-yellow-400 text-black text-xs flex items-center justify-center font-bold">
                 {itemCount}
               </span>
@@ -170,23 +184,23 @@ export default function Header({ onToggleCategorySidebar }) {
           </NavLink>
           {showCartEntryPoints ? (
             <NavLink className="hover:text-yellow-400" to="/checkout">
-              THANH TOAN
+              {HEADER_COPY.checkout}
             </NavLink>
           ) : null}
           <NavLink className="hover:text-yellow-400" to="/installment">
-            TRA GOP
+            {HEADER_COPY.installment}
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/contact">
-            LIEN HE
+            {HEADER_COPY.contact}
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/support">
-            HO TRO KHACH HANG
+            {HEADER_COPY.support}
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/blog">
-            THU VIEN
+            {HEADER_COPY.library}
           </NavLink>
           <NavLink className="hover:text-yellow-400" to="/careers">
-            TUYEN DUNG
+            {HEADER_COPY.careers}
           </NavLink>
         </div>
       </div>

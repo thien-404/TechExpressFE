@@ -33,7 +33,7 @@ export default function CartBootstrap() {
       dispatch(syncCartAfterLogin())
         .unwrap()
         .catch((error) => {
-          toast.error(error || "Khong the dong bo gio hang voi he thong");
+          toast.error(error || "Không thể đồng bộ giỏ hàng với hệ thống");
         });
     }
   }, [canUseCart, dispatch, isAuthenticated, loading]);

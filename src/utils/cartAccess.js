@@ -1,7 +1,7 @@
 export const ADMIN_ROLE = "Admin";
 
 export const CART_ACCESS_DENIED_MESSAGE =
-  "Tai khoan admin khong the su dung gio hang o khu vuc khach hang.";
+  "Tài khoản admin không thể sử dụng giỏ hàng ở khu vực khách hàng.";
 
 export function isCartRestrictedUser(user) {
   return user?.role === ADMIN_ROLE;

@@ -7,6 +7,16 @@ import useCartAccess from "../../hooks/useCartAccess";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
 
+const PRODUCT_CARD_COPY = {
+  missingProduct: "Không tìm thấy thông tin sản phẩm",
+  outOfStock: "Sản phẩm đã hết hàng",
+  addSuccess: "Đã thêm vào giỏ hàng",
+  addFailed: "Không thể thêm vào giỏ hàng",
+  wishlistSoon: "Tính năng yêu thích sẽ sớm có",
+  soldOutBadge: "Hết hàng",
+  addToCart: "Thêm vào giỏ",
+};
+
 const formatPrice = (price) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -32,12 +42,12 @@ export default function ProductCard({ product, badge, showRank }) {
     }
 
     if (!product?.id) {
-      toast.error("Khong tim thay thong tin san pham");
+      toast.error(PRODUCT_CARD_COPY.missingProduct);
       return;
     }
 
     if (isOutOfStock) {
-      toast.error("San pham da het hang");
+      toast.error(PRODUCT_CARD_COPY.outOfStock);
       return;
     }
 
@@ -57,16 +67,16 @@ export default function ProductCard({ product, badge, showRank }) {
         })
       ).unwrap();
 
-      toast.success("Da them vao gio hang");
+      toast.success(PRODUCT_CARD_COPY.addSuccess);
     } catch (error) {
-      toast.error(error || "Khong the them vao gio hang");
+      toast.error(error || PRODUCT_CARD_COPY.addFailed);
     }
   };
 
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    toast.info("Tinh nang yeu thich se som co");
+    toast.info(PRODUCT_CARD_COPY.wishlistSoon);
   };
 
   return (
@@ -104,7 +114,7 @@ export default function ProductCard({ product, badge, showRank }) {
 
         {isOutOfStock && (
           <span className="absolute top-3 right-3 bg-slate-600 text-white text-xs px-2 py-1 rounded">
-            Het hang
+            {PRODUCT_CARD_COPY.soldOutBadge}
           </span>
         )}
 
@@ -122,7 +132,7 @@ export default function ProductCard({ product, badge, showRank }) {
               className="flex-1 bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
             >
               <ShoppingCart size={16} />
-              <span>Them vao gio</span>
+              <span>{PRODUCT_CARD_COPY.addToCart}</span>
             </button>
           ) : null}
           <button
@@ -160,7 +170,7 @@ export default function ProductCard({ product, badge, showRank }) {
               className="flex-1 bg-[#0090D0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
             >
               <ShoppingCart size={16} />
-              <span>{isOutOfStock ? "Het hang" : ""}</span>
+              <span>{isOutOfStock ? PRODUCT_CARD_COPY.soldOutBadge : ""}</span>
             </button>
           ) : null}
           <button
@@ -172,7 +182,7 @@ export default function ProductCard({ product, badge, showRank }) {
         </div>
 
         {stock > 0 && stock <= 10 && (
-          <div className="text-xs text-orange-600 mt-2">Chi con {stock} san pham</div>
+          <div className="text-xs text-orange-600 mt-2">{`Chỉ còn ${stock} sản phẩm`}</div>
         )}
       </div>
     </NavLink>
