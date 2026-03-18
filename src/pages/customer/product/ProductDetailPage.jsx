@@ -22,8 +22,9 @@ import {
   REVIEW_SORT_DIRECTION,
   reviewService,
 } from "../../../services/reviewService";
-import { useAuth } from "../../../store/authContext";
+import useCartAccess from "../../../hooks/useCartAccess";
 import { addCartItem } from "../../../store/slices/cartSlice";
+import { CART_ACCESS_DENIED_MESSAGE } from "../../../utils/cartAccess";
 import { uploadReviewImages, validateImageFiles } from "../../../utils/uploadImage";
 
 const REVIEW_PAGE_SIZE = 5;
@@ -498,7 +499,7 @@ export default function ProductDetailPage() {
   const { productId } = useParams();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, loading: authLoading, canUseCart } = useCartAccess();
   const mobileCarouselRef = useRef(null);
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -680,6 +681,7 @@ export default function ProductDetailPage() {
   const isOutOfStock = product?.status === "Unavailable" || stock <= 0;
   const maxQuantity = stock > 0 ? stock : 1;
   const safeQuantity = Math.min(Math.max(quantity, 1), maxQuantity);
+  const showCartActions = !authLoading && canUseCart;
 
   const handleSetQuantity = (nextValue) => {
     const numeric = Number(nextValue) || 1;
@@ -688,6 +690,11 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
+    if (!canUseCart) {
+      toast.info(CART_ACCESS_DENIED_MESSAGE);
+      return;
+    }
+
     if (!product?.id) {
       toast.error("Không tìm thấy sản phẩm");
       return;
@@ -933,7 +940,9 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <div className="mt-5">
+            {showCartActions ? (
+              <>
+                <div className="mt-5">
               <div className="mb-2 text-sm font-medium text-slate-700">Số lượng</div>
               <div className="inline-flex items-center overflow-hidden rounded-md border border-slate-300">
                 <button
@@ -973,6 +982,8 @@ export default function ProductDetailPage() {
               <ShoppingCart size={18} />
               Thêm vào giỏ hàng
             </button>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1125,7 +1136,8 @@ export default function ProductDetailPage() {
         )}
       </section>
 
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] md:hidden">
+      {showCartActions ? (
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] md:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="truncate text-base font-bold text-red-600">{formatPrice(product.price)}</div>
@@ -1143,7 +1155,8 @@ export default function ProductDetailPage() {
             Thêm vào giỏ
           </button>
         </div>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

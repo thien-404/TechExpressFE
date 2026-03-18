@@ -486,6 +486,21 @@ const cartSlice = createSlice({
   name: "cart",
   initialState,
   reducers: {
+    clearCartUiState(state) {
+      state.items = [];
+      state.selectedItemKeys = [];
+      state.initialized = true;
+      state.source = "local";
+      state.loading = false;
+      state.actionLoading = {
+        add: false,
+        update: false,
+        remove: false,
+        clear: false,
+      };
+      state.error = null;
+      state.lastSyncedAt = null;
+    },
     hydrateCartFromSignalR(state, action) {
       const nextItems = normalizeServerItems(action.payload);
       state.selectedItemKeys = syncSelectedItemKeys(
@@ -661,6 +676,7 @@ const cartSlice = createSlice({
 
 export default cartSlice.reducer;
 export const {
+  clearCartUiState,
   clearCartSelection,
   hydrateCartFromSignalR,
   toggleCartItemSelection,

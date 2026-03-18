@@ -3,8 +3,19 @@ import { NavLink } from "react-router-dom";
 import { Heart, ShoppingCart, Package } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
-import { useAuth } from "../../store/authContext";
+import useCartAccess from "../../hooks/useCartAccess";
 import { addCartItem } from "../../store/slices/cartSlice";
+import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
+
+const PRODUCT_CARD_COPY = {
+  missingProduct: "Không tìm thấy thông tin sản phẩm",
+  outOfStock: "Sản phẩm đã hết hàng",
+  addSuccess: "Đã thêm vào giỏ hàng",
+  addFailed: "Không thể thêm vào giỏ hàng",
+  wishlistSoon: "Tính năng yêu thích sẽ sớm có",
+  soldOutBadge: "Hết hàng",
+  addToCart: "Thêm vào giỏ",
+};
 
 const formatPrice = (price) =>
   new Intl.NumberFormat("vi-VN", {
@@ -14,23 +25,29 @@ const formatPrice = (price) =>
 
 export default function ProductCard({ product, badge, showRank }) {
   const dispatch = useDispatch();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading, canUseCart } = useCartAccess();
   const [hovered, setHovered] = useState(false);
 
   const stock = Math.max(Number(product.stockQty ?? product.stock ?? 0) || 0, 0);
   const isOutOfStock = product.status === "Unavailable" || stock === 0;
+  const showCartActions = !loading && canUseCart;
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    if (!canUseCart) {
+      toast.info(CART_ACCESS_DENIED_MESSAGE);
+      return;
+    }
+
     if (!product?.id) {
-      toast.error("Không tìm thấy thông tin sản phẩm");
+      toast.error(PRODUCT_CARD_COPY.missingProduct);
       return;
     }
 
     if (isOutOfStock) {
-      toast.error("Sản phẩm đã hết hàng");
+      toast.error(PRODUCT_CARD_COPY.outOfStock);
       return;
     }
 
@@ -50,16 +67,16 @@ export default function ProductCard({ product, badge, showRank }) {
         })
       ).unwrap();
 
-      toast.success("Đã thêm vào giỏ hàng");
+      toast.success(PRODUCT_CARD_COPY.addSuccess);
     } catch (error) {
-      toast.error(error || "Không thể thêm vào giỏ hàng");
+      toast.error(error || PRODUCT_CARD_COPY.addFailed);
     }
   };
 
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    toast.info("Tính năng yêu thích sẽ sớm có");
+    toast.info(PRODUCT_CARD_COPY.wishlistSoon);
   };
 
   return (
@@ -97,11 +114,10 @@ export default function ProductCard({ product, badge, showRank }) {
 
         {isOutOfStock && (
           <span className="absolute top-3 right-3 bg-slate-600 text-white text-xs px-2 py-1 rounded">
-            Hết hàng
+            {PRODUCT_CARD_COPY.soldOutBadge}
           </span>
         )}
 
-        {/* Desktop: hiện khi hover | Mobile: luôn hiện ở dưới cùng */}
         <div
           className="absolute bottom-3 left-3 right-3 flex gap-2 transition-opacity duration-200 sm:pointer-events-none"
           style={{
@@ -109,14 +125,16 @@ export default function ProductCard({ product, badge, showRank }) {
             pointerEvents: hovered ? "auto" : "none",
           }}
         >
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="flex-1 bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
-          >
-            <ShoppingCart size={16} />
-            <span>Thêm vào giỏ</span>
-          </button>
+          {showCartActions ? (
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="flex-1 bg-[#0090D0] hover:bg-[#0077B0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
+            >
+              <ShoppingCart size={16} />
+              <span>{PRODUCT_CARD_COPY.addToCart}</span>
+            </button>
+          ) : null}
           <button
             onClick={handleWishlist}
             className="bg-white hover:bg-slate-100 text-slate-600 p-2 rounded-lg border border-slate-200 transition-colors"
@@ -144,16 +162,17 @@ export default function ProductCard({ product, badge, showRank }) {
           <span className="text-lg font-bold text-red-600">{formatPrice(product.price)}</span>
         </div>
 
-        {/* Mobile: nút thêm vào giỏ cố định dưới giá */}
         <div className="flex gap-2 mt-3 sm:hidden">
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="flex-1 bg-[#0090D0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
-          >
-            <ShoppingCart size={16} />
-            <span>{isOutOfStock ? "Hết hàng" : ""}</span>
-          </button>
+          {showCartActions ? (
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className="flex-1 bg-[#0090D0] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-semibold py-2 px-3 rounded-lg flex items-center justify-center gap-1 transition-colors"
+            >
+              <ShoppingCart size={16} />
+              <span>{isOutOfStock ? PRODUCT_CARD_COPY.soldOutBadge : ""}</span>
+            </button>
+          ) : null}
           <button
             onClick={handleWishlist}
             className="bg-slate-100 text-slate-600 p-2 rounded-lg border border-slate-200"
@@ -163,7 +182,7 @@ export default function ProductCard({ product, badge, showRank }) {
         </div>
 
         {stock > 0 && stock <= 10 && (
-          <div className="text-xs text-orange-600 mt-2">Chỉ còn {stock} sản phẩm</div>
+          <div className="text-xs text-orange-600 mt-2">{`Chỉ còn ${stock} sản phẩm`}</div>
         )}
       </div>
     </NavLink>
