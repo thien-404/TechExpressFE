@@ -1,17 +1,16 @@
-import { createBrowserRouter } from "react-router-dom";
-// Layouts
+import { createBrowserRouter, Navigate } from "react-router-dom";
+
 import CartAccessRoute from "../components/auth/CartAccessRoute.jsx";
 import ProtectedRoute from "../components/auth/ProtectedRoute.jsx";
 import CustomerLayout from "../layouts/CustomerLayout";
 import AdminLayout from "../layouts/AdminLayout";
+import StaffLayout from "../layouts/StaffLayout.jsx";
 
-// Common Pages
 import LoginPage from "../pages/LoginPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "../pages/ResetPasswordPage.jsx";
 
-// Admin Pages
 import UserPage from "../pages/admin/Users/UserPage.jsx";
 import UserDetailPage from "../pages/admin/Users/UserDetailPage.jsx";
 import CategoryPage from "../pages/admin/Categories/CategoryPage.jsx";
@@ -28,8 +27,20 @@ import PromotionDetailPage from "../pages/admin/Promotions/PromotionDetailPage.j
 import OrderPage from "../pages/admin/Order/OrderPage.jsx";
 import OrderDetailPage from "../pages/admin/Order/OrderDetailPage.jsx";
 import AdminChatPage from "../pages/admin/Chat/AdminChatPage.jsx";
+import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
+import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
+import AdminTicketPage from "../pages/admin/Ticket/TicketPage.jsx";
+import AdminTicketDetailPage from "../pages/admin/Ticket/TicketDetailPage.jsx";
 
-//Customer Pages
+import StaffProductPage from "../pages/staff/Product/ProductPage.jsx";
+import StaffProductDetailPage from "../pages/staff/Product/ProductDetailPage.jsx";
+import StaffOrderPage from "../pages/staff/Order/OrderPage.jsx";
+import StaffOrderDetailPage from "../pages/staff/Order/OrderDetailPage.jsx";
+import StaffPromotionPage from "../pages/staff/Promotions/PromotionPage.jsx";
+import StaffPromotionDetailPage from "../pages/staff/Promotions/PromotionDetailPage.jsx";
+import StaffTicketPage from "../pages/staff/Ticket/TicketPage.jsx";
+import StaffTicketDetailPage from "../pages/staff/Ticket/TicketDetailPage.jsx";
+
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
 import HomePage from "../pages/customer/HomePage.jsx";
 import ProductListingPage from "../pages/customer/product/ProductListingPage.jsx";
@@ -40,12 +51,13 @@ import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
 import CustomPcBuilderPage from "../pages/customer/CustomPcBuilderPage.jsx";
 import CustomerPromotionPage from "../pages/customer/promotion/PromotionPage.jsx";
 import CustomerPromotionDetailPage from "../pages/customer/promotion/PromotionDetailPage.jsx";
-import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
-import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
+import SupportPage from "../pages/customer/SupportPage.jsx";
 
 export const router = createBrowserRouter([
   {
-    path: "/", element: <CustomerLayout />, children: [
+    path: "/",
+    element: <CustomerLayout />,
+    children: [
       { index: true, element: <HomePage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
@@ -59,25 +71,22 @@ export const router = createBrowserRouter([
       { path: "promotions", element: <CustomerPromotionPage /> },
       { path: "promotions/:promotionId", element: <CustomerPromotionDetailPage /> },
       { path: "products/search", element: <ProductSearchPage /> },
-      { path: "products/:productId", element: <CustomerProductDetailPage /> }
-    ]
+      { path: "products/:productId", element: <CustomerProductDetailPage /> },
+      { path: "support", element: <SupportPage /> },
+    ],
   },
   {
-    path: "/admin", element: <ProtectedRoute requiredRole="Admin"><AdminLayout /></ProtectedRoute>, children: [
+    path: "/admin",
+    element: <ProtectedRoute requiredRole="Admin"><AdminLayout /></ProtectedRoute>,
+    children: [
       { index: true, element: <h2>Admin Home Page</h2> },
-      // User Management
-      { path: "users", element: <UserPage />},
+      { path: "users", element: <UserPage /> },
       { path: "users/:userId", element: <UserDetailPage /> },
       { path: "users/:userId/edit", element: <UserUpdatePage /> },
       { path: "staff/create", element: <StaffCreatePage /> },
-
-      // Category Management
       { path: "categories", element: <CategoryPage /> },
-      { path: "categories/:categoryId", element: <CategoryDetailsPage/>},
-
-      { path: "brands", element: <BrandPage/>},
-
-      // Product Management
+      { path: "categories/:categoryId", element: <CategoryDetailsPage /> },
+      { path: "brands", element: <BrandPage /> },
       { path: "products", element: <ProductPage /> },
       { path: "products/create", element: <ProductCreatePage /> },
       { path: "products/pc-create", element: <PcCreatePage /> },
@@ -89,6 +98,23 @@ export const router = createBrowserRouter([
       { path: "orders", element: <OrderPage /> },
       { path: "orders/:orderId", element: <OrderDetailPage /> },
       { path: "chat", element: <AdminChatPage /> },
-    ]
-  }
+      { path: "tickets", element: <AdminTicketPage /> },
+      { path: "tickets/:ticketId", element: <AdminTicketDetailPage /> },
+    ],
+  },
+  {
+    path: "/staff",
+    element: <ProtectedRoute requiredRole="Staff"><StaffLayout /></ProtectedRoute>,
+    children: [
+      { index: true, element: <Navigate to="/staff/orders" replace /> },
+      { path: "products", element: <StaffProductPage /> },
+      { path: "products/:productId", element: <StaffProductDetailPage /> },
+      { path: "orders", element: <StaffOrderPage /> },
+      { path: "orders/:orderId", element: <StaffOrderDetailPage /> },
+      { path: "promotions", element: <StaffPromotionPage /> },
+      { path: "promotions/:promotionId", element: <StaffPromotionDetailPage /> },
+      { path: "tickets", element: <StaffTicketPage /> },
+      { path: "tickets/:ticketId", element: <StaffTicketDetailPage /> },
+    ],
+  },
 ]);

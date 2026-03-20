@@ -1,127 +1,167 @@
-import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useState } from 'react'
-import { toast } from 'sonner'
-import { useAuth } from '../store/authContext'
-import apiService from '../config/axios'
-// import { GoogleLogin } from '@react-oauth/google' // ⛔ BE: login Google
+import { useState } from "react";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
-export default function LoginPage() {
-  /* =======================
-   * STATE
-   * ======================= */
-  const [formData, setFormData] = useState({
-    email: 'admin@techexpress.com',
-    password: 'Admin@12345'
-  })
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const { login } = useAuth()
+import apiService from "../config/axios";
+import { useAuth } from "../store/authContext";
+import { decodeToken } from "../utils/jwt";
 
-  // ⛳ redirect sau login
-  const from = searchParams.get("redirect") || location.state?.from?.pathname || '/'
+const ROLE_HOME_PATHS = {
+  admin: "/admin",
+  staff: "/staff",
+  customer: "/",
+};
 
-  /* =======================
-   * HANDLERS
-   * ======================= */
-  const handleChange = (field) => (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: e.target.value
-    }))
-  }
+const PUBLIC_AUTH_PATHS = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+]);
 
-  /**
-   * ⛔ BE: LOGIN BẰNG EMAIL + PASSWORD
-   * - POST /auths/login
-   * - body: { emailOrUsername, password }
-   * - response: { token, user }
-   */
-  const handleSubmit = async (e) => {
-  e.preventDefault()
-  if (loading) return
+const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
-  setLoading(true)
+const getRoleHomePath = (role) => {
+  const normalizedRole = normalizeRole(role);
+  return ROLE_HOME_PATHS[normalizedRole] || ROLE_HOME_PATHS.customer;
+};
+
+const normalizeRequestedPath = (requestedPath) => {
+  if (!requestedPath || typeof requestedPath !== "string") return "";
 
   try {
-    const response = await apiService.post('/auth/login', {
-      email: formData.email.trim(),
-      password: formData.password
-    })
-
-    /**
-     * BE response:
-     * {
-     *   statusCode: 200,
-     *   value: { accessToken, refreshToken, email, role }
-     * }
-     */
-    const { statusCode, value } = response.data || {}
-
-    if (statusCode !== 200 || !value?.accessToken) {
-      toast.error('Email hoặc mật khẩu không đúng!')
-      return
-    }
-
-    const { accessToken, refreshToken } = value
-
-    // AuthContext chịu trách nhiệm validate + decode JWT
-    login(accessToken)
-
-    // Lưu refresh token cho bước sau
-    if (refreshToken) {
-      localStorage.setItem('refreshToken', refreshToken)
-    }
-
-    toast.success('Đăng nhập thành công!')
-    navigate(from, { replace: true })
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message ||
-      'Đăng nhập thất bại. Vui lòng thử lại.'
-    )
-  } finally {
-    setLoading(false)
+    const parsed = new URL(requestedPath, "http://localhost");
+    if (parsed.origin !== "http://localhost") return "";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "";
   }
-}
+};
 
-  /**
-   * ⛔ BE: LOGIN GOOGLE
-   * - POST /auths/google
-   * - body: { idToken }
-   */
+const isPathAllowedForRole = (requestedPath, role) => {
+  const normalizedPath = normalizeRequestedPath(requestedPath);
+  if (!normalizedPath.startsWith("/")) return false;
+
+  const normalizedRole = normalizeRole(role);
+
+  if (normalizedPath.startsWith("/admin")) {
+    return normalizedRole === "admin";
+  }
+
+  if (normalizedPath.startsWith("/staff")) {
+    return normalizedRole === "staff";
+  }
+
+  return true;
+};
+
+const resolvePostLoginPath = ({ requestedPath, role }) => {
+  const normalizedRequestedPath = normalizeRequestedPath(requestedPath);
+  const roleHomePath = getRoleHomePath(role);
+
+  if (!normalizedRequestedPath || PUBLIC_AUTH_PATHS.has(normalizedRequestedPath)) {
+    return roleHomePath;
+  }
+
+  if (isPathAllowedForRole(normalizedRequestedPath, role)) {
+    return normalizedRequestedPath;
+  }
+
+  return roleHomePath;
+};
+
+export default function LoginPage() {
+  const [formData, setFormData] = useState({
+    email: "admin@techexpress.com",
+    password: "Admin@12345",
+  });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
+
+  const fromState = location.state?.from;
+  const requestedPathFromState = fromState
+    ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
+    : "";
+  const requestedPath = searchParams.get("redirect") || requestedPathFromState || "";
+
+  const handleChange = (field) => (event) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (loading) return;
+
+    setLoading(true);
+
+    try {
+      const response = await apiService.post("/auth/login", {
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      const { statusCode, value } = response.data || {};
+
+      if (statusCode !== 200 || !value?.accessToken) {
+        toast.error("Email hoặc mật khẩu không đúng!");
+        return;
+      }
+
+      const { accessToken, refreshToken, role: responseRole } = value;
+      const decodedUser = decodeToken(accessToken);
+      const resolvedRole = responseRole || decodedUser?.role;
+
+      login(accessToken);
+
+      if (refreshToken) {
+        localStorage.setItem("refreshToken", refreshToken);
+      }
+
+      const destination = resolvePostLoginPath({
+        requestedPath,
+        role: resolvedRole,
+      });
+
+      toast.success("Đăng nhập thành công!");
+      navigate(destination, { replace: true });
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onGoogleLogin = () => {
-    toast.info('Google login chưa được tích hợp.')
-  }
+    toast.info("Google login chưa được tích hợp.");
+  };
 
-  /* =======================
-   * RENDER
-   * ======================= */
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
-      {/* Breadcrumb */}
       <div className="text-sm text-slate-500 mb-8">
-        <NavLink to="/" className="hover:underline hover:text-[#0090D0]">Trang chủ</NavLink> / <span className="text-slate-700">Đăng nhập tài khoản</span>
+        <NavLink to="/" className="hover:underline hover:text-[#0090D0]">
+          Trang chủ
+        </NavLink>{" "}
+        / <span className="text-slate-700">Đăng nhập tài khoản</span>
       </div>
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold text-center mb-2">
-        ĐĂNG NHẬP TÀI KHOẢN
-      </h1>
+      <h1 className="text-2xl font-semibold text-center mb-2">ĐĂNG NHẬP TÀI KHOẢN</h1>
       <p className="text-center text-sm text-slate-600 mb-8">
-        Bạn chưa có tài khoản?{' '}
+        Bạn chưa có tài khoản?{" "}
         <NavLink to="/register" className="text-[#0090D0] hover:underline">
           Đăng ký tại đây
         </NavLink>
       </p>
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-xl mx-auto space-y-5"
-      >
-        {/* Email */}
+      <form onSubmit={handleSubmit} className="max-w-xl mx-auto space-y-5">
         <div>
           <label className="block text-sm font-medium mb-1">
             Email <span className="text-red-500">*</span>
@@ -130,7 +170,7 @@ export default function LoginPage() {
             type="email"
             placeholder="Email"
             value={formData.email}
-            onChange={handleChange('email')}
+            onChange={handleChange("email")}
             disabled={loading}
             className="
               w-full border border-slate-300 rounded-md
@@ -141,7 +181,6 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Password */}
         <div>
           <label className="block text-sm font-medium mb-1">
             Mật khẩu <span className="text-red-500">*</span>
@@ -150,7 +189,7 @@ export default function LoginPage() {
             type="password"
             placeholder="Mật khẩu"
             value={formData.password}
-            onChange={handleChange('password')}
+            onChange={handleChange("password")}
             disabled={loading}
             className="
               w-full border border-slate-300 rounded-md
@@ -160,14 +199,13 @@ export default function LoginPage() {
             required
           />
           <div className="text-sm mt-2">
-            Quên mật khẩu?{' '}
+            Quên mật khẩu?{" "}
             <NavLink to="/forgot-password" className="text-[#0090D0]">
               Nhấn vào đây
             </NavLink>
           </div>
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
@@ -178,15 +216,11 @@ export default function LoginPage() {
             disabled:opacity-60
           "
         >
-          {loading ? 'ĐANG ĐĂNG NHẬP...' : 'Đăng nhập'}
+          {loading ? "ĐANG ĐĂNG NHẬP..." : "Đăng nhập"}
         </button>
 
-        {/* Divider */}
-        <div className="text-center text-sm text-slate-500 pt-4">
-          Hoặc đăng nhập bằng
-        </div>
+        <div className="text-center text-sm text-slate-500 pt-4">Hoặc đăng nhập bằng</div>
 
-        {/* Social login */}
         <div className="flex gap-3 justify-center pt-2">
           <button
             type="button"
@@ -199,5 +233,5 @@ export default function LoginPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

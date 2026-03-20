@@ -1,11 +1,11 @@
 import React from 'react'
-import { NavLink } from 'react-router-dom'
 
 function AccountTabs({ active, onChange }) {
   const tabs = [
-    { key: 'profile', label: 'Tài Khoản Của Tôi' },
-    { key: 'orders', label: 'Đơn Mua' },
-    { key: 'voucher', label: 'Kho Voucher' },
+    { key: 'profile', label: 'Tài khoản của tôi' },
+    { key: 'orders', label: 'Đơn mua' },
+    { key: 'ticket', label: 'Ticket hỗ trợ' },
+    { key: 'voucher', label: 'Kho voucher' },
   ]
 
   return (
@@ -32,7 +32,6 @@ function AccountTabs({ active, onChange }) {
 export default function AccountSidebar({ user, activeTab, onTabChange, onLogout }) {
   return (
     <aside className="w-64 bg-white rounded-lg p-4">
-      {/* User info */}
       <div className="flex items-center gap-3 pb-4 border-b">
         <div className="h-12 w-12 rounded-full bg-slate-200 flex items-center justify-center">
           <span className="text-slate-500">👤</span>
@@ -45,16 +44,15 @@ export default function AccountSidebar({ user, activeTab, onTabChange, onLogout 
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="mt-4">
-        <div className="text-xs text-slate-500 mb-2">Thông Báo</div>
+        <div className="text-xs text-slate-500 mb-2">Trung tâm tài khoản</div>
         <AccountTabs active={activeTab} onChange={onTabChange} />
 
         <button
           onClick={onLogout}
           className="mt-4 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded"
         >
-          Đăng Xuất
+          Đăng xuất
         </button>
       </div>
     </aside>

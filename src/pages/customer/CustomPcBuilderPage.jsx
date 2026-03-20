@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  MessageSquarePlus,
   ShieldCheck,
   ShoppingCart,
   Trash2,
@@ -25,6 +26,7 @@ import { customPcService } from "../../services/customPcService";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
 import { getCustomPcGuestSessionId, getOrCreateCustomPcGuestSessionId } from "../../utils/customPcSession";
+import { buildTicketEntryPath } from "../../utils/ticket";
 
 const PAGE_SIZE = 12;
 const CUSTOM_PC_PARENT_ID = "ea7f1e64-8abf-49fe-a38f-f75528a1f832";
@@ -224,6 +226,7 @@ const groupItemsByCategory = (items = [], categories = []) => {
 
 export default function CustomPcBuilderPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isAuthenticated, user, loading: authLoading, canUseCart } = useCartAccess();
 
@@ -623,6 +626,38 @@ export default function CustomPcBuilderPage() {
                   {checkCompatibilityMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
                   Kiểm tra tương thích
                 </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      buildTicketEntryPath({
+                        isAuthenticated,
+                        type: "CompatibilityQuestion",
+                        customPCId: activeBuildSummary.id,
+                      })
+                    )
+                  }
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <ShieldCheck size={16} />
+                  Hỏi tương thích
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      buildTicketEntryPath({
+                        isAuthenticated,
+                        type: "BuildAdvice",
+                        customPCId: activeBuildSummary.id,
+                      })
+                    )
+                  }
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <MessageSquarePlus size={16} />
+                  Nhờ tư vấn cấu hình
+                </button>
                 {canUseCart ? (
                   <button
                     type="button"
@@ -989,3 +1024,5 @@ export default function CustomPcBuilderPage() {
     </div>
   );
 }
+
+

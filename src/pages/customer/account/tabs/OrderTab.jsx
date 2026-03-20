@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+
 import { orderService } from "../../../../services/orderService";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
@@ -26,6 +27,7 @@ const STATUS_META = {
   canceled: "bg-rose-50 text-rose-700 border border-rose-200",
   cancelled: "bg-rose-50 text-rose-700 border border-rose-200",
   refunded: "bg-slate-100 text-slate-700 border border-slate-200",
+  expired: "bg-orange-50 text-orange-700 border border-orange-200",
 };
 
 function normalizeStatus(status) {
@@ -45,6 +47,7 @@ function getStatusText(status) {
   if (key === "installing") return "Đang lắp đặt";
   if (key === "canceled" || key === "cancelled") return "Đã hủy";
   if (key === "refunded") return "Đã hoàn tiền";
+  if (key === "expired") return "Hết hạn";
   return status || "Không xác định";
 }
 
@@ -68,7 +71,7 @@ function shortenOrderId(id) {
   return id.slice(0, 8).toUpperCase();
 }
 
-export default function OrderTab({ customerId, onViewDetail }) {
+export default function OrderTab({ onViewDetail }) {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState(null);
@@ -77,20 +80,16 @@ export default function OrderTab({ customerId, onViewDetail }) {
   const queryParams = useMemo(
     () => ({
       Search: search ?? null,
-      Status: null,
-      SortBy: null,
-      SortDirection: null,
       Page: page,
       PageSize: pageSize,
-      CustomerId: customerId ?? null,
     }),
-    [search, page, customerId]
+    [search, page]
   );
 
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: ["account-orders", queryParams],
     queryFn: async () => {
-      const response = await orderService.getOrders(queryParams);
+      const response = await orderService.getMyOrders(queryParams);
       if (!response.succeeded) {
         throw new Error(response.message || "Không thể tải danh sách đơn hàng");
       }
@@ -167,7 +166,9 @@ export default function OrderTab({ customerId, onViewDetail }) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500">Mã đơn</p>
-                  <p className="break-words text-sm font-semibold text-slate-900">#{shortenOrderId(order.id)}</p>
+                  <p className="break-words text-sm font-semibold text-slate-900">
+                    #{shortenOrderId(order.id)}
+                  </p>
                   <p className="mt-1 text-xs text-slate-500">{formatOrderDate(order.orderDate)}</p>
                 </div>
                 <span
@@ -181,7 +182,8 @@ export default function OrderTab({ customerId, onViewDetail }) {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-slate-600">
-                  Người nhận: <span className="font-medium text-slate-800">{order.receiverFullName || "--"}</span>
+                  Người nhận:{" "}
+                  <span className="font-medium text-slate-800">{order.receiverFullName || "--"}</span>
                 </p>
                 <p className="text-base font-semibold text-red-600">{formatMoney(order.totalPrice)}</p>
               </div>

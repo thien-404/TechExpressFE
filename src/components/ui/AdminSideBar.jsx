@@ -12,7 +12,8 @@ import {
   ChartBarStacked,
   Bandage,
   MessageSquare,
-  BadgePercent
+  BadgePercent,
+  LifeBuoy,
 } from 'lucide-react'
 
 const SideLink = ({ to, icon, children, end, onClick }) => {
@@ -166,8 +167,12 @@ export default function AdminSideBar({ open, onClose }) {
             Đơn hàng
           </SideLink>
 
+          <SideLink to="/admin/tickets" icon={LifeBuoy} onClick={onClose}>
+            Ticket hỗ trợ
+          </SideLink>
+
           <SideLink to="/admin/chat" icon={MessageSquare} onClick={onClose}>
-            Hỗ trợ khách hàng
+            Chat hỗ trợ
           </SideLink>
         </nav>
       </aside>
