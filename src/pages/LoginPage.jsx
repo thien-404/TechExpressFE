@@ -1,145 +1,161 @@
-import { NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useState } from 'react'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
-import apiService from '../config/axios'
-import { useAuth } from '../store/authContext'
-import { decodeToken } from '../utils/jwt'
+import apiService from "../config/axios";
+import { useAuth } from "../store/authContext";
+import { decodeToken } from "../utils/jwt";
 
 const ROLE_HOME_PATHS = {
-  admin: '/admin',
-  staff: '/staff',
-  customer: '/',
-}
+  admin: "/admin",
+  staff: "/staff",
+  customer: "/",
+};
 
-const normalizeRole = (role) => String(role || '').trim().toLowerCase()
+const PUBLIC_AUTH_PATHS = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+]);
+
+const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
 const getRoleHomePath = (role) => {
-  const normalizedRole = normalizeRole(role)
-  return ROLE_HOME_PATHS[normalizedRole] || ROLE_HOME_PATHS.customer
-}
+  const normalizedRole = normalizeRole(role);
+  return ROLE_HOME_PATHS[normalizedRole] || ROLE_HOME_PATHS.customer;
+};
 
 const normalizeRequestedPath = (requestedPath) => {
-  if (!requestedPath || typeof requestedPath !== 'string') return ''
+  if (!requestedPath || typeof requestedPath !== "string") return "";
 
   try {
-    const parsed = new URL(requestedPath, 'http://localhost')
-    if (parsed.origin !== 'http://localhost') return ''
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+    const parsed = new URL(requestedPath, "http://localhost");
+    if (parsed.origin !== "http://localhost") return "";
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return ''
+    return "";
   }
-}
+};
 
 const isPathAllowedForRole = (requestedPath, role) => {
-  const normalizedPath = normalizeRequestedPath(requestedPath)
-  if (!normalizedPath.startsWith('/')) return false
+  const normalizedPath = normalizeRequestedPath(requestedPath);
+  if (!normalizedPath.startsWith("/")) return false;
 
-  const normalizedRole = normalizeRole(role)
+  const normalizedRole = normalizeRole(role);
 
-  if (normalizedPath.startsWith('/admin')) {
-    return normalizedRole === 'admin'
+  if (normalizedPath.startsWith("/admin")) {
+    return normalizedRole === "admin";
   }
 
-  if (normalizedPath.startsWith('/staff')) {
-    return normalizedRole === 'staff'
+  if (normalizedPath.startsWith("/staff")) {
+    return normalizedRole === "staff";
   }
 
-  return true
-}
+  return true;
+};
 
 const resolvePostLoginPath = ({ requestedPath, role }) => {
-  if (isPathAllowedForRole(requestedPath, role)) {
-    return normalizeRequestedPath(requestedPath)
+  const normalizedRequestedPath = normalizeRequestedPath(requestedPath);
+  const roleHomePath = getRoleHomePath(role);
+
+  if (!normalizedRequestedPath || PUBLIC_AUTH_PATHS.has(normalizedRequestedPath)) {
+    return roleHomePath;
   }
 
-  return getRoleHomePath(role)
-}
+  if (isPathAllowedForRole(normalizedRequestedPath, role)) {
+    return normalizedRequestedPath;
+  }
+
+  return roleHomePath;
+};
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
-    email: 'admin@techexpress.com',
-    password: 'Admin@12345',
-  })
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [searchParams] = useSearchParams()
-  const { login } = useAuth()
+    email: "admin@techexpress.com",
+    password: "Admin@12345",
+  });
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
 
-  const requestedPath =
-    searchParams.get('redirect') || location.state?.from?.pathname || '/'
+  const fromState = location.state?.from;
+  const requestedPathFromState = fromState
+    ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
+    : "";
+  const requestedPath = searchParams.get("redirect") || requestedPathFromState || "";
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({
       ...prev,
       [field]: event.target.value,
-    }))
-  }
+    }));
+  };
 
   const handleSubmit = async (event) => {
-    event.preventDefault()
-    if (loading) return
+    event.preventDefault();
+    if (loading) return;
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const response = await apiService.post('/auth/login', {
+      const response = await apiService.post("/auth/login", {
         email: formData.email.trim(),
         password: formData.password,
-      })
+      });
 
-      const { statusCode, value } = response.data || {}
+      const { statusCode, value } = response.data || {};
 
       if (statusCode !== 200 || !value?.accessToken) {
-        toast.error('Email hoặc mật khẩu không đúng!')
-        return
+        toast.error("Email hoặc mật khẩu không đúng!");
+        return;
       }
 
-      const { accessToken, refreshToken, role: responseRole } = value
-      const decodedUser = decodeToken(accessToken)
-      const resolvedRole = responseRole || decodedUser?.role
+      const { accessToken, refreshToken, role: responseRole } = value;
+      const decodedUser = decodeToken(accessToken);
+      const resolvedRole = responseRole || decodedUser?.role;
 
-      login(accessToken)
+      login(accessToken);
 
       if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken)
+        localStorage.setItem("refreshToken", refreshToken);
       }
 
       const destination = resolvePostLoginPath({
         requestedPath,
         role: resolvedRole,
-      })
+      });
 
-      toast.success('Đăng nhập thành công!')
-      navigate(destination, { replace: true })
+      toast.success("Đăng nhập thành công!");
+      navigate(destination, { replace: true });
     } catch (error) {
       toast.error(
-        error.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.'
-      )
+        error.response?.data?.message || "Đăng nhập thất bại. Vui lòng thử lại."
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const onGoogleLogin = () => {
-    toast.info('Google login chưa được tích hợp.')
-  }
+    toast.info("Google login chưa được tích hợp.");
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <div className="text-sm text-slate-500 mb-8">
         <NavLink to="/" className="hover:underline hover:text-[#0090D0]">
           Trang chủ
-        </NavLink>{' '}
+        </NavLink>{" "}
         / <span className="text-slate-700">Đăng nhập tài khoản</span>
       </div>
 
-      <h1 className="text-2xl font-semibold text-center mb-2">
-        ĐĂNG NHẬP TÀI KHOẢN
-      </h1>
+      <h1 className="text-2xl font-semibold text-center mb-2">ĐĂNG NHẬP TÀI KHOẢN</h1>
       <p className="text-center text-sm text-slate-600 mb-8">
-        Bạn chưa có tài khoản?{' '}
+        Bạn chưa có tài khoản?{" "}
         <NavLink to="/register" className="text-[#0090D0] hover:underline">
           Đăng ký tại đây
         </NavLink>
@@ -154,7 +170,7 @@ export default function LoginPage() {
             type="email"
             placeholder="Email"
             value={formData.email}
-            onChange={handleChange('email')}
+            onChange={handleChange("email")}
             disabled={loading}
             className="
               w-full border border-slate-300 rounded-md
@@ -173,7 +189,7 @@ export default function LoginPage() {
             type="password"
             placeholder="Mật khẩu"
             value={formData.password}
-            onChange={handleChange('password')}
+            onChange={handleChange("password")}
             disabled={loading}
             className="
               w-full border border-slate-300 rounded-md
@@ -183,7 +199,7 @@ export default function LoginPage() {
             required
           />
           <div className="text-sm mt-2">
-            Quên mật khẩu?{' '}
+            Quên mật khẩu?{" "}
             <NavLink to="/forgot-password" className="text-[#0090D0]">
               Nhấn vào đây
             </NavLink>
@@ -200,12 +216,10 @@ export default function LoginPage() {
             disabled:opacity-60
           "
         >
-          {loading ? 'ĐANG ĐĂNG NHẬP...' : 'Đăng nhập'}
+          {loading ? "ĐANG ĐĂNG NHẬP..." : "Đăng nhập"}
         </button>
 
-        <div className="text-center text-sm text-slate-500 pt-4">
-          Hoặc đăng nhập bằng
-        </div>
+        <div className="text-center text-sm text-slate-500 pt-4">Hoặc đăng nhập bằng</div>
 
         <div className="flex gap-3 justify-center pt-2">
           <button
@@ -219,5 +233,5 @@ export default function LoginPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

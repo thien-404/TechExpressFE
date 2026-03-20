@@ -84,7 +84,7 @@ export default function StaffCreatePage() {
         <Breadcrumb
           items={[
             { label: "Trang chủ", href: "/admin" },
-            { label: "Quản lý nhân viên", href: "/admin/staff" },
+            { label: "Quản lý Người Dùng", href: "/admin/users" },
             { label: "Tạo mới" }
           ]}
         />
