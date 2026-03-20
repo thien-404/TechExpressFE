@@ -28,6 +28,11 @@ export const orderService = {
     return normalizeEnvelope(response);
   },
 
+  async getMyOrders(params = {}) {
+    const response = await apiService.get("/Order/my-orders", params);
+    return normalizeEnvelope(response);
+  },
+
   async getOrderDetail(orderId) {
     const response = await apiService.get(`/Order/getOrderDetail/${orderId}`);
     return normalizeEnvelope(response);

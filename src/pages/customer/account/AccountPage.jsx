@@ -245,7 +245,7 @@ export default function AccountPage() {
         )}
 
         {activeTab === "orders" && !selectedOrderId && (
-          <OrderTab customerId={form.id || undefined} onViewDetail={setSelectedOrderId} />
+          <OrderTab onViewDetail={setSelectedOrderId} />
         )}
 
         {activeTab === "orders" && selectedOrderId && (
