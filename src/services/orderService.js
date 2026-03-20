@@ -12,6 +12,11 @@ function normalizeEnvelope(response) {
   };
 }
 
+async function runOrderStatusAction(orderId, action) {
+  const response = await apiService.get(`/Order/${orderId}/${action}`);
+  return normalizeEnvelope(response);
+}
+
 export const orderService = {
   async getOrders(params = {}) {
     const response = await apiService.get("/Order", params);
@@ -44,5 +49,29 @@ export const orderService = {
       payload
     );
     return normalizeEnvelope(response);
+  },
+
+  async processOrder(orderId) {
+    return runOrderStatusAction(orderId, "process");
+  },
+
+  async deliverOrder(orderId) {
+    return runOrderStatusAction(orderId, "deliver");
+  },
+
+  async markOrderDelivered(orderId) {
+    return runOrderStatusAction(orderId, "delivered");
+  },
+
+  async markOrderReadyForPickup(orderId) {
+    return runOrderStatusAction(orderId, "ready-to-pickup");
+  },
+
+  async markOrderPickedUp(orderId) {
+    return runOrderStatusAction(orderId, "picked-up");
+  },
+
+  async completeOrder(orderId) {
+    return runOrderStatusAction(orderId, "completed");
   },
 };
