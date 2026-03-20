@@ -64,6 +64,8 @@ const TERMINAL_ORDER_STATUSES = new Set([
   "expired",
 ]);
 
+const MANAGEMENT_ROLES = new Set(["admin", "staff"]);
+
 const DELIVERY_TEXT_BY_KEY = Object.entries(DELIVERY_TEXT).reduce((acc, [key, value]) => {
   acc[normalizeKey(key)] = value;
   return acc;
@@ -125,13 +127,26 @@ const ORDER_STATUS_ACTIONS = {
     key: "completed",
     label: "Hoàn tất đơn hàng",
     nextStatus: "Completed",
-    allowedRoles: ["Admin"],
     run: (orderId) => orderService.completeOrder(orderId),
   },
 };
 
 export function normalizeKey(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+export function normalizeViewer(viewerOrRole) {
+  if (typeof viewerOrRole === "string") {
+    return {
+      role: viewerOrRole,
+      userId: null,
+    };
+  }
+
+  return {
+    role: viewerOrRole?.role || "",
+    userId: viewerOrRole?.userId || viewerOrRole?.id || null,
+  };
 }
 
 export function formatPrice(value) {
@@ -190,8 +205,29 @@ export function getPaidText(paidType) {
   return PAID_TEXT_BY_KEY[normalizeKey(paidType)] || paidType || "--";
 }
 
-function buildActionState(action, role) {
-  if (action.allowedRoles.includes(role)) {
+function isManagementRole(role) {
+  return MANAGEMENT_ROLES.has(normalizeKey(role));
+}
+
+function isViewerOwner(order, viewer) {
+  const orderUserId = String(order?.userId || "").trim().toLowerCase();
+  const viewerUserId = String(viewer?.userId || "").trim().toLowerCase();
+
+  return Boolean(orderUserId) && Boolean(viewerUserId) && orderUserId === viewerUserId;
+}
+
+function hasMemberOwner(order) {
+  return order?.userId != null;
+}
+
+function hasAllowedRole(action, role) {
+  return action.allowedRoles?.some((allowedRole) => normalizeKey(allowedRole) === normalizeKey(role));
+}
+
+function buildActionState(action, viewerOrRole) {
+  const viewer = normalizeViewer(viewerOrRole);
+
+  if (hasAllowedRole(action, viewer.role)) {
     return {
       type: "action",
       tone: "info",
@@ -201,11 +237,84 @@ function buildActionState(action, role) {
     };
   }
 
+  const roleLabel = viewer.role ? normalizeKey(viewer.role) : "hiện tại";
+
   return {
     type: "blocked",
     tone: "warning",
     nextStatus: action.nextStatus,
-    hint: `Tài khoản ${role.toLowerCase()} không có quyền chuyển sang ${getStatusText(action.nextStatus)}.`,
+    hint: `Tài khoản ${roleLabel} không có quyền chuyển sang ${getStatusText(action.nextStatus)}.`,
+  };
+}
+
+function getCompletedBlockedHint(order, viewer) {
+  const deliveryType = normalizeKey(order?.deliveryType);
+  const viewerIsManagement = isManagementRole(viewer.role);
+  const memberOrder = hasMemberOwner(order);
+
+  if (deliveryType === "shipping") {
+    if (memberOrder) {
+      return viewerIsManagement
+        ? "Đơn giao hàng của khách thành viên chỉ chính khách hàng đó mới có thể hoàn tất."
+        : "Bạn chỉ có thể hoàn tất đơn giao hàng của chính mình.";
+    }
+
+    return "Đơn hàng khách vãng lai chỉ quản trị viên hoặc nhân viên mới có thể hoàn tất.";
+  }
+
+  if (memberOrder) {
+    return viewerIsManagement
+      ? "Không thể hoàn tất đơn hàng này với tài khoản hiện tại."
+      : "Bạn chỉ có thể hoàn tất đơn nhận tại cửa hàng của chính mình.";
+  }
+
+  return "Đơn hàng khách vãng lai chỉ quản trị viên hoặc nhân viên mới có thể hoàn tất.";
+}
+
+export function canViewerCompleteOrder(order, viewerOrRole) {
+  const viewer = normalizeViewer(viewerOrRole);
+  const status = normalizeKey(order?.status);
+  const deliveryType = normalizeKey(order?.deliveryType);
+  const viewerIsManagement = isManagementRole(viewer.role);
+  const memberOrder = hasMemberOwner(order);
+
+  if (status !== "delivered" && status !== "pickedup") {
+    return false;
+  }
+
+  if (deliveryType === "shipping") {
+    if (memberOrder) {
+      return isViewerOwner(order, viewer);
+    }
+
+    return viewerIsManagement;
+  }
+
+  if (memberOrder) {
+    return viewerIsManagement || isViewerOwner(order, viewer);
+  }
+
+  return viewerIsManagement;
+}
+
+function buildCompletedTransitionState(order, viewerOrRole) {
+  const viewer = normalizeViewer(viewerOrRole);
+
+  if (canViewerCompleteOrder(order, viewer)) {
+    return {
+      type: "action",
+      tone: "info",
+      nextStatus: ORDER_STATUS_ACTIONS.completed.nextStatus,
+      hint: `Chỉ được chuyển tuần tự sang ${getStatusText(ORDER_STATUS_ACTIONS.completed.nextStatus)}.`,
+      action: ORDER_STATUS_ACTIONS.completed,
+    };
+  }
+
+  return {
+    type: "blocked",
+    tone: "warning",
+    nextStatus: ORDER_STATUS_ACTIONS.completed.nextStatus,
+    hint: getCompletedBlockedHint(order, viewer),
   };
 }
 
@@ -239,7 +348,8 @@ export function getOrderFlow(order) {
   return baseFlow;
 }
 
-export function getOrderTransitionState(order, role) {
+export function getOrderTransitionState(order, viewerOrRole) {
+  const viewer = normalizeViewer(viewerOrRole);
   const status = normalizeKey(order?.status);
   const deliveryType = normalizeKey(order?.deliveryType);
 
@@ -271,20 +381,20 @@ export function getOrderTransitionState(order, role) {
   }
 
   if (status === "confirmed") {
-    return buildActionState(ORDER_STATUS_ACTIONS.process, role);
+    return buildActionState(ORDER_STATUS_ACTIONS.process, viewer);
   }
 
   if (status === "processing") {
     if (deliveryType === "pickup") {
-      return buildActionState(ORDER_STATUS_ACTIONS.readyForPickup, role);
+      return buildActionState(ORDER_STATUS_ACTIONS.readyForPickup, viewer);
     }
 
-    return buildActionState(ORDER_STATUS_ACTIONS.deliver, role);
+    return buildActionState(ORDER_STATUS_ACTIONS.deliver, viewer);
   }
 
   if (status === "shipping") {
-    if (role === "Staff") {
-      return buildActionState(ORDER_STATUS_ACTIONS.delivered, role);
+    if (normalizeKey(viewer.role) === "staff") {
+      return buildActionState(ORDER_STATUS_ACTIONS.delivered, viewer);
     }
 
     return {
@@ -296,11 +406,11 @@ export function getOrderTransitionState(order, role) {
   }
 
   if (status === "readyforpickup") {
-    return buildActionState(ORDER_STATUS_ACTIONS.pickedUp, role);
+    return buildActionState(ORDER_STATUS_ACTIONS.pickedUp, viewer);
   }
 
   if (status === "delivered" || status === "pickedup") {
-    return buildActionState(ORDER_STATUS_ACTIONS.completed, role);
+    return buildCompletedTransitionState(order, viewer);
   }
 
   if (status === "installing") {

@@ -1,7 +1,10 @@
 import { useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
 import { orderService } from "../../../../services/orderService";
+import { useAuth } from "../../../../store/authContext.jsx";
+import { canViewerCompleteOrder } from "../../../../utils/orderManagement";
 
 const ONLINE_PAYMENT_METHOD = 1;
 
@@ -59,6 +62,18 @@ function normalizeKey(value) {
 }
 
 function getOrderStatusText(value) {
+  const key = normalizeKey(value);
+  if (key === "pending") return "Đang chờ";
+  if (key === "confirmed") return "Đã xác nhận";
+  if (key === "processing") return "Đang xử lý";
+  if (key === "shipping") return "Đang giao";
+  if (key === "delivered") return "Đã giao";
+  if (key === "readyforpickup") return "Sẵn sàng nhận tại cửa hàng";
+  if (key === "pickedup") return "Đã nhận tại cửa hàng";
+  if (key === "completed") return "Hoàn tất";
+  if (key === "installing") return "Đang lắp đặt";
+  if (key === "canceled" || key === "cancelled") return "Đã hủy";
+  if (key === "refunded") return "Đã hoàn tiền";
   return ORDER_STATUS_TEXT[value] || value || "--";
 }
 
@@ -131,6 +146,9 @@ function getPayableInstallmentId(orderDetail) {
 }
 
 export default function OrderDetailTab({ orderId, onBack }) {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
   const {
     data: order,
     isLoading,
@@ -150,6 +168,14 @@ export default function OrderDetailTab({ orderId, onBack }) {
   });
 
   const showPayButton = useMemo(() => canShowPayButton(order), [order]);
+  const canCompleteOrder = useMemo(
+    () =>
+      canViewerCompleteOrder(order, {
+        role: user?.role,
+        userId: user?.id,
+      }),
+    [order, user?.id, user?.role]
+  );
   const notesText = useMemo(() => getPlainNotes(order?.notes), [order?.notes]);
 
   const payMutation = useMutation({
@@ -157,20 +183,21 @@ export default function OrderDetailTab({ orderId, onBack }) {
       if (!order?.id) {
         throw new Error("Không tìm thấy mã đơn để thanh toán");
       }
+
       const payableInstallmentId = getPayableInstallmentId(order);
       const isInstallmentOrder =
         normalizeKey(order?.paidType) === "installment" || (order?.installments || []).length > 0;
-      let response;
       const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
+      let response;
+
       if (payableInstallmentId) {
         response = await orderService.initInstallmentOnlinePayment(payableInstallmentId, {
           method: ONLINE_PAYMENT_METHOD,
-          returnUrl
+          returnUrl,
         });
       } else if (isInstallmentOrder) {
         throw new Error("Không tìm thấy kỳ trả góp nào đang trong thời hạn thanh toán");
       } else {
-        
         response = await orderService.initOnlinePayment(order.id, {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
@@ -196,6 +223,29 @@ export default function OrderDetailTab({ orderId, onBack }) {
     },
   });
 
+  const completeMutation = useMutation({
+    mutationFn: async () => {
+      if (!order?.id) {
+        throw new Error("Không tìm thấy mã đơn hàng.");
+      }
+
+      const response = await orderService.completeOrder(order.id);
+      if (!response.succeeded) {
+        throw new Error(response.message || "Không thể hoàn tất đơn hàng.");
+      }
+    },
+    onSuccess: async () => {
+      toast.success("Đã hoàn tất đơn hàng.");
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ["account-orders"] }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Không thể hoàn tất đơn hàng.");
+    },
+  });
+
   return (
     <section className="flex-1 min-w-0 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -206,16 +256,30 @@ export default function OrderDetailTab({ orderId, onBack }) {
         >
           Quay lại danh sách
         </button>
-        {showPayButton && (
-          <button
-            type="button"
-            onClick={() => payMutation.mutate()}
-            disabled={payMutation.isPending}
-            className="h-9 rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {payMutation.isPending ? "Đang khởi tạo..." : "Thanh toán ngay"}
-          </button>
-        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {canCompleteOrder && (
+            <button
+              type="button"
+              onClick={() => completeMutation.mutate()}
+              disabled={completeMutation.isPending}
+              className="h-9 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {completeMutation.isPending ? "Đang hoàn tất..." : "Hoàn tất đơn hàng"}
+            </button>
+          )}
+
+          {showPayButton && (
+            <button
+              type="button"
+              onClick={() => payMutation.mutate()}
+              disabled={payMutation.isPending}
+              className="h-9 rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {payMutation.isPending ? "Đang khởi tạo..." : "Thanh toán ngay"}
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading && (
@@ -296,7 +360,9 @@ export default function OrderDetailTab({ orderId, onBack }) {
                       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                         <span>SL: {item.quantity || 0}</span>
                         <span>Đơn giá: {formatMoney(item.unitPrice)}</span>
-                        <span className="font-semibold text-slate-800">Thành tiền: {formatMoney(item.totalPrice)}</span>
+                        <span className="font-semibold text-slate-800">
+                          Thành tiền: {formatMoney(item.totalPrice)}
+                        </span>
                       </div>
                     </div>
                   </div>
