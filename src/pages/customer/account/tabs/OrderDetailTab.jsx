@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { orderService } from "../../../../services/orderService";
 import { useAuth } from "../../../../store/authContext.jsx";
 import { canViewerCompleteOrder } from "../../../../utils/orderManagement";
+import { buildTicketEntryPath } from "../../../../utils/ticket";
 
 const ONLINE_PAYMENT_METHOD = 1;
 
@@ -147,6 +149,7 @@ function getPayableInstallmentId(orderDetail) {
 
 export default function OrderDetailTab({ orderId, onBack }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const {
@@ -258,6 +261,23 @@ export default function OrderDetailTab({ orderId, onBack }) {
         </button>
 
         <div className="flex flex-wrap items-center gap-2">
+          {order?.id && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  buildTicketEntryPath({
+                    isAuthenticated: true,
+                    type: "OrderIssue",
+                    orderId: order.id,
+                  })
+                )
+              }
+              className="h-9 rounded-lg border border-[#0090D0] px-4 text-sm font-semibold text-[#0090D0] hover:bg-[#0090D0]/5"
+            >
+              Gửi ticket đơn hàng
+            </button>
+          )}
           {canCompleteOrder && (
             <button
               type="button"
@@ -364,6 +384,23 @@ export default function OrderDetailTab({ orderId, onBack }) {
                           Thành tiền: {formatMoney(item.totalPrice)}
                         </span>
                       </div>
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(
+                              buildTicketEntryPath({
+                                isAuthenticated: true,
+                                type: "WarrantyRequest",
+                                orderItemId: item.id,
+                              })
+                            )
+                          }
+                          className="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Tạo ticket bảo hành
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>
@@ -446,3 +483,4 @@ function SkeletonRow() {
     </div>
   );
 }
+

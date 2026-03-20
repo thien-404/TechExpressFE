@@ -29,6 +29,8 @@ import OrderDetailPage from "../pages/admin/Order/OrderDetailPage.jsx";
 import AdminChatPage from "../pages/admin/Chat/AdminChatPage.jsx";
 import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.jsx";
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
+import AdminTicketPage from "../pages/admin/Ticket/TicketPage.jsx";
+import AdminTicketDetailPage from "../pages/admin/Ticket/TicketDetailPage.jsx";
 
 import StaffProductPage from "../pages/staff/Product/ProductPage.jsx";
 import StaffProductDetailPage from "../pages/staff/Product/ProductDetailPage.jsx";
@@ -36,6 +38,8 @@ import StaffOrderPage from "../pages/staff/Order/OrderPage.jsx";
 import StaffOrderDetailPage from "../pages/staff/Order/OrderDetailPage.jsx";
 import StaffPromotionPage from "../pages/staff/Promotions/PromotionPage.jsx";
 import StaffPromotionDetailPage from "../pages/staff/Promotions/PromotionDetailPage.jsx";
+import StaffTicketPage from "../pages/staff/Ticket/TicketPage.jsx";
+import StaffTicketDetailPage from "../pages/staff/Ticket/TicketDetailPage.jsx";
 
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
 import HomePage from "../pages/customer/HomePage.jsx";
@@ -47,6 +51,7 @@ import ProductSearchPage from "../pages/customer/product/ProductSearchPage.jsx";
 import CustomPcBuilderPage from "../pages/customer/CustomPcBuilderPage.jsx";
 import CustomerPromotionPage from "../pages/customer/promotion/PromotionPage.jsx";
 import CustomerPromotionDetailPage from "../pages/customer/promotion/PromotionDetailPage.jsx";
+import SupportPage from "../pages/customer/SupportPage.jsx";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +72,7 @@ export const router = createBrowserRouter([
       { path: "promotions/:promotionId", element: <CustomerPromotionDetailPage /> },
       { path: "products/search", element: <ProductSearchPage /> },
       { path: "products/:productId", element: <CustomerProductDetailPage /> },
+      { path: "support", element: <SupportPage /> },
     ],
   },
   {
@@ -92,6 +98,8 @@ export const router = createBrowserRouter([
       { path: "orders", element: <OrderPage /> },
       { path: "orders/:orderId", element: <OrderDetailPage /> },
       { path: "chat", element: <AdminChatPage /> },
+      { path: "tickets", element: <AdminTicketPage /> },
+      { path: "tickets/:ticketId", element: <AdminTicketDetailPage /> },
     ],
   },
   {
@@ -105,6 +113,8 @@ export const router = createBrowserRouter([
       { path: "orders/:orderId", element: <StaffOrderDetailPage /> },
       { path: "promotions", element: <StaffPromotionPage /> },
       { path: "promotions/:promotionId", element: <StaffPromotionDetailPage /> },
+      { path: "tickets", element: <StaffTicketPage /> },
+      { path: "tickets/:ticketId", element: <StaffTicketDetailPage /> },
     ],
   },
 ]);

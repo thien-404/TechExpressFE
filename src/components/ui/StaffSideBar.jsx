@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { FiBox, FiShoppingCart, FiTag, FiX } from "react-icons/fi";
+import { LifeBuoy } from "lucide-react";
 
 function linkClass(isActive) {
   return `flex items-center gap-3 rounded-md px-4 py-2.5 text-sm font-medium transition ${
@@ -47,6 +48,11 @@ export default function StaffSideBar({ open, onClose }) {
           <NavLink to="/staff/promotions" onClick={onClose} className={({ isActive }) => linkClass(isActive)}>
             <FiTag size={18} />
             <span>{"Khuyến mãi"}</span>
+          </NavLink>
+
+          <NavLink to="/staff/tickets" onClick={onClose} className={({ isActive }) => linkClass(isActive)}>
+            <LifeBuoy size={18} />
+            <span>{"Ticket hỗ trợ"}</span>
           </NavLink>
         </nav>
       </aside>

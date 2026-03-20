@@ -8,6 +8,7 @@ import AccountSidebar from "../../../components/ui/AccountSideBar.jsx";
 import AccountInfoTab from "./tabs/AccountInfoTab";
 import OrderTab from "./tabs/OrderTab";
 import OrderDetailTab from "./tabs/OrderDetailTab";
+import TicketTab from "./tabs/TicketTab";
 
 const buildUpdatePayload = (source) => ({
   firstName: source.firstName,
@@ -21,7 +22,7 @@ const buildUpdatePayload = (source) => ({
   avatarImage: source.avatarImage,
 });
 
-const VALID_TABS = new Set(["profile", "orders", "voucher"]);
+const VALID_TABS = new Set(["profile", "orders", "ticket", "voucher"]);
 
 const normalizeTab = (value) => {
   const tab = String(value || "").toLowerCase().trim();
@@ -146,6 +147,15 @@ export default function AccountPage() {
       nextParams.set("tab", nextTab);
     }
 
+    if (nextTab !== "ticket") {
+      nextParams.delete("mode");
+      nextParams.delete("ticketId");
+      nextParams.delete("type");
+      nextParams.delete("customPCId");
+      nextParams.delete("orderId");
+      nextParams.delete("orderItemId");
+    }
+
     setSearchParams(nextParams, { replace: true });
     setSelectedOrderId(null);
   };
@@ -189,7 +199,7 @@ export default function AccountPage() {
                 : "bg-slate-100 text-slate-700"
             }`}
           >
-            Tài Khoản
+            Tài khoản
           </button>
           <button
             type="button"
@@ -201,6 +211,17 @@ export default function AccountPage() {
             }`}
           >
             Đơn mua
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("ticket")}
+            className={`h-9 rounded-lg text-sm font-medium ${
+              activeTab === "ticket"
+                ? "bg-[#0090D0]/10 text-[#0090D0]"
+                : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            Ticket
           </button>
           <button
             type="button"
@@ -216,7 +237,7 @@ export default function AccountPage() {
           <button
             type="button"
             onClick={onLogout}
-            className="h-9 rounded-lg text-sm font-medium bg-red-50 text-red-600"
+            className="h-9 rounded-lg text-sm font-medium bg-red-50 text-red-600 col-span-2"
           >
             Đăng xuất
           </button>
@@ -251,6 +272,8 @@ export default function AccountPage() {
         {activeTab === "orders" && selectedOrderId && (
           <OrderDetailTab orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />
         )}
+
+        {activeTab === "ticket" && <TicketTab />}
 
         {activeTab === "voucher" && (
           <div className="flex-1 min-w-0 bg-white rounded-lg p-6 text-sm text-slate-500">
