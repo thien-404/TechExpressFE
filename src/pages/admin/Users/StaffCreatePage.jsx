@@ -55,7 +55,7 @@ export default function StaffCreatePage() {
 
       console.log("📤 Payload:", payload) // Debug
 
-      const res = await apiService.post("/user/create-staff", payload)
+      const res = await apiService.post("/user", payload)
       
       if (res?.statusCode !== 201 && res?.statusCode !== 200) {
         throw new Error(res?.message || "Tạo nhân viên thất bại")

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -70,6 +70,18 @@ const T = {
   updateSuccessPrefix: "Đã cập nhật trạng thái sang",
   updateFailed: "Không thể cập nhật trạng thái đơn hàng.",
   paymentStatus: "Trạng thái",
+  deliverMode: "Hình thức bàn giao",
+  deliverModeHelp: "Chọn cách đơn hàng bắt đầu đi giao để gửi đúng dữ liệu cho backend.",
+  partnerDelivery: "Bàn giao cho đơn vị vận chuyển",
+  selfDelivery: "Staff tự giao hàng",
+  courierService: "Đơn vị vận chuyển",
+  courierServicePlaceholder: "Ví dụ: Giao Hàng Nhanh",
+  trackingCode: "Mã vận đơn",
+  trackingCodePlaceholder: "Nhập mã vận đơn",
+  selfDeliveryHint:
+    "Đơn sẽ được ghi nhận là staff tự giao hàng, không cần nhập thêm thông tin vận chuyển.",
+  courierServiceRequired: "Vui lòng nhập đơn vị vận chuyển.",
+  trackingCodeRequired: "Vui lòng nhập mã vận đơn.",
 };
 
 const TRANSITION_TONE_CLASS = {
@@ -77,6 +89,12 @@ const TRANSITION_TONE_CLASS = {
   warning: "border-amber-200 bg-amber-50 text-amber-700",
   muted: "border-slate-200 bg-slate-50 text-slate-600",
   terminal: "border-slate-200 bg-slate-50 text-slate-600",
+};
+
+const DEFAULT_DELIVERY_FORM = {
+  mode: "partner",
+  courierService: "",
+  courierTrackingCode: "",
 };
 
 function InfoField({ label, value }) {
@@ -129,6 +147,7 @@ export default function ManagementOrderDetailView({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { orderId } = useParams();
+  const [deliveryForm, setDeliveryForm] = useState(DEFAULT_DELIVERY_FORM);
 
   const { data: order, isLoading, isFetching } = useQuery({
     enabled: !!orderId,
@@ -145,14 +164,62 @@ export default function ManagementOrderDetailView({
 
   const orderFlow = useMemo(() => getOrderFlow(order), [order]);
   const transitionState = useMemo(() => getOrderTransitionState(order, role), [order, role]);
+  const isDeliverAction =
+    transitionState.type === "action" && transitionState.action?.key === "deliver";
+
+  const deliveryPayloadState = useMemo(() => {
+    if (!isDeliverAction) {
+      return {
+        isValid: true,
+        message: "",
+        payload: undefined,
+      };
+    }
+
+    const isSelfDeliver = deliveryForm.mode === "self";
+    const courierService = deliveryForm.courierService.trim();
+    const courierTrackingCode = deliveryForm.courierTrackingCode.trim();
+
+    if (!isSelfDeliver && !courierService) {
+      return {
+        isValid: false,
+        message: T.courierServiceRequired,
+        payload: undefined,
+      };
+    }
+
+    if (!isSelfDeliver && !courierTrackingCode) {
+      return {
+        isValid: false,
+        message: T.trackingCodeRequired,
+        payload: undefined,
+      };
+    }
+
+    return {
+      isValid: true,
+      message: "",
+      payload: {
+        isSelfDeliver,
+        courierService: isSelfDeliver ? null : courierService,
+        courierTrackingCode: isSelfDeliver ? null : courierTrackingCode,
+      },
+    };
+  }, [deliveryForm, isDeliverAction]);
+
+  useEffect(() => {
+    if (!isDeliverAction) {
+      setDeliveryForm(DEFAULT_DELIVERY_FORM);
+    }
+  }, [isDeliverAction, orderId]);
 
   const updateStatusMutation = useMutation({
-    mutationFn: async (action) => {
+    mutationFn: async ({ action, payload }) => {
       if (!orderId) {
         throw new Error(T.updateMissingId);
       }
 
-      const res = await action.run(orderId);
+      const res = await action.run(orderId, payload);
       if (!res.succeeded) {
         throw new Error(res.message || `${T.updateErrorPrefix} ${getStatusText(action.nextStatus)}.`);
       }
@@ -173,7 +240,16 @@ export default function ManagementOrderDetailView({
 
   const handleUpdateStatus = () => {
     if (transitionState.type !== "action" || updateStatusMutation.isPending) return;
-    updateStatusMutation.mutate(transitionState.action);
+
+    if (transitionState.action.requiresPayload && !deliveryPayloadState.isValid) {
+      toast.error(deliveryPayloadState.message || T.updateFailed);
+      return;
+    }
+
+    updateStatusMutation.mutate({
+      action: transitionState.action,
+      payload: transitionState.action.requiresPayload ? deliveryPayloadState.payload : undefined,
+    });
   };
 
   if (isLoading) {
@@ -211,7 +287,7 @@ export default function ManagementOrderDetailView({
           items={[
             { label: T.home, href: basePath },
             { label: T.title, href: `${basePath}/orders` },
-            { label: `${"Đơn"} ${orderLabel}` },
+            { label: `Đơn ${orderLabel}` },
           ]}
         />
 
@@ -227,7 +303,10 @@ export default function ManagementOrderDetailView({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[#334155]">{T.detailPrefix}{String(order.id || "").slice(0, 8).toUpperCase()}</h1>
+          <h1 className="text-2xl font-semibold text-[#334155]">
+            {T.detailPrefix}
+            {String(order.id || "").slice(0, 8).toUpperCase()}
+          </h1>
           <p className="mt-1 text-sm text-slate-500">{formatDate(order.orderDate)}</p>
         </div>
         <OrderStatusBadge status={order.status} />
@@ -236,14 +315,17 @@ export default function ManagementOrderDetailView({
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-2xl">
-            <h2 className="text-base font-semibold text-slate-800">{T.updateStatus}</h2>         
+            <h2 className="text-base font-semibold text-slate-800">{T.updateStatus}</h2>
           </div>
 
           {transitionState.type === "action" ? (
             <button
               type="button"
               onClick={handleUpdateStatus}
-              disabled={updateStatusMutation.isPending}
+              disabled={
+                updateStatusMutation.isPending ||
+                (transitionState.action.requiresPayload && !deliveryPayloadState.isValid)
+              }
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {updateStatusMutation.isPending && <FiLoader className="animate-spin" />}
@@ -260,6 +342,85 @@ export default function ManagementOrderDetailView({
           {transitionState.hint}
         </div>
 
+        {isDeliverAction && (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-slate-700" htmlFor="deliver-mode">
+                  {T.deliverMode}
+                </label>
+                <select
+                  id="deliver-mode"
+                  value={deliveryForm.mode}
+                  onChange={(event) =>
+                    setDeliveryForm((prev) => ({
+                      ...prev,
+                      mode: event.target.value,
+                    }))
+                  }
+                  className="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="partner">{T.partnerDelivery}</option>
+                  <option value="self">{T.selfDelivery}</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-500">{T.deliverModeHelp}</p>
+              </div>
+
+              {deliveryForm.mode === "partner" ? (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700" htmlFor="courier-service">
+                      {T.courierService}
+                    </label>
+                    <input
+                      id="courier-service"
+                      type="text"
+                      value={deliveryForm.courierService}
+                      onChange={(event) =>
+                        setDeliveryForm((prev) => ({
+                          ...prev,
+                          courierService: event.target.value,
+                        }))
+                      }
+                      placeholder={T.courierServicePlaceholder}
+                      className="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-slate-700" htmlFor="tracking-code">
+                      {T.trackingCode}
+                    </label>
+                    <input
+                      id="tracking-code"
+                      type="text"
+                      value={deliveryForm.courierTrackingCode}
+                      onChange={(event) =>
+                        setDeliveryForm((prev) => ({
+                          ...prev,
+                          courierTrackingCode: event.target.value,
+                        }))
+                      }
+                      placeholder={T.trackingCodePlaceholder}
+                      className="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                  {T.selfDeliveryHint}
+                </div>
+              )}
+            </div>
+
+            {!deliveryPayloadState.isValid && (
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                {deliveryPayloadState.message}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
           <InfoField label={T.currentStatus} value={<OrderStatusBadge status={order.status} />} />
           <InfoField
@@ -272,9 +433,7 @@ export default function ManagementOrderDetailView({
         <div className="mt-4">
           <div className="text-[11px] uppercase tracking-wide text-slate-500">{T.flow}</div>
           <OrderFlowSteps flow={orderFlow} currentStatus={order.status} />
-          {isFetching && !isLoading && (
-            <div className="mt-3 text-xs text-slate-500">{T.refreshing}</div>
-          )}
+          {isFetching && !isLoading && <div className="mt-3 text-xs text-slate-500">{T.refreshing}</div>}
         </div>
       </div>
 
@@ -351,7 +510,9 @@ export default function ManagementOrderDetailView({
                         <div className="line-clamp-2 font-medium text-slate-800">{product?.name || T.product}</div>
                       )}
 
-                      <div className="mt-1 text-xs text-slate-500">{T.sku}: {product?.sku || "--"}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {T.sku}: {product?.sku || "--"}
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                         <span>{T.quantity}: {item.quantity || 0}</span>
                         <span>{T.unitPrice}: {formatPrice(item.unitPrice)}</span>

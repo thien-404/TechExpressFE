@@ -92,6 +92,14 @@ const ORDER_STATUS_ACTIONS = {
     allowedRoles: ["Admin", "Staff"],
     run: (orderId) => orderService.processOrder(orderId),
   },
+  deliver: {
+    key: "deliver",
+    label: "Bắt đầu giao hàng",
+    nextStatus: "Shipping",
+    allowedRoles: ["Staff"],
+    requiresPayload: true,
+    run: (orderId, payload) => orderService.deliverOrder(orderId, payload),
+  },
   readyForPickup: {
     key: "ready-for-pickup",
     label: "Chuyển sang Sẵn sàng nhận",
@@ -117,7 +125,7 @@ const ORDER_STATUS_ACTIONS = {
     key: "completed",
     label: "Hoàn tất đơn hàng",
     nextStatus: "Completed",
-    allowedRoles: ["Admin", "Staff"],
+    allowedRoles: ["Admin"],
     run: (orderId) => orderService.completeOrder(orderId),
   },
 };
@@ -271,15 +279,7 @@ export function getOrderTransitionState(order, role) {
       return buildActionState(ORDER_STATUS_ACTIONS.readyForPickup, role);
     }
 
-    return {
-      type: "blocked",
-      tone: "warning",
-      nextStatus: "Shipping",
-      hint:
-        role === "Staff"
-          ? "Bước sang Đang giao hàng"
-          : "Bước sang Đang giao hàng dành cho staff.",
-    };
+    return buildActionState(ORDER_STATUS_ACTIONS.deliver, role);
   }
 
   if (status === "shipping") {

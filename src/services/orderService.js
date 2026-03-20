@@ -17,6 +17,11 @@ async function runOrderStatusAction(orderId, action) {
   return normalizeEnvelope(response);
 }
 
+async function runOrderStatusPutAction(orderId, action, payload = {}) {
+  const response = await apiService.put(`/Order/${orderId}/${action}`, payload);
+  return normalizeEnvelope(response);
+}
+
 export const orderService = {
   async getOrders(params = {}) {
     const response = await apiService.get("/Order", params);
@@ -55,8 +60,8 @@ export const orderService = {
     return runOrderStatusAction(orderId, "process");
   },
 
-  async deliverOrder(orderId) {
-    return runOrderStatusAction(orderId, "deliver");
+  async deliverOrder(orderId, payload) {
+    return runOrderStatusPutAction(orderId, "deliver", payload);
   },
 
   async markOrderDelivered(orderId) {
