@@ -18,7 +18,7 @@ async function runOrderStatusAction(orderId, action) {
 }
 
 async function runOrderStatusPutAction(orderId, action, payload = {}) {
-  const response = await apiService.put(`/Order/${orderId}/${action}`, payload);
+  const response = await apiService.patch(`/Order/${orderId}/${action}`, payload);
   return normalizeEnvelope(response);
 }
 
