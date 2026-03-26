@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../store/authContext'
 import {
   FiGrid,
-  FiMail,
-  FiUsers,
-  FiStar,
+  FiBox,
+  FiShoppingCart,
+  FiTag,
   FiChevronDown,
-  FiUser,
   FiMenu,
-  FiSettings,
   FiLogOut,
   FiBell
 } from 'react-icons/fi'
@@ -18,9 +16,18 @@ import {
 /* =========================
  * ICON BUTTON
  * ========================= */
-const IconButton = ({ children, active = false, badge = null, onClick }) => (
+const IconButton = ({
+  children,
+  active = false,
+  badge = null,
+  onClick,
+  label
+}) => (
   <button
+    type="button"
     onClick={onClick}
+    aria-label={label}
+    title={label}
     className={`relative h-9 w-9 flex items-center justify-center rounded-md transition-colors ${
       active 
         ? 'bg-slate-100 text-[#334155]' 
@@ -40,10 +47,37 @@ const IconButton = ({ children, active = false, badge = null, onClick }) => (
  * MAIN TOPBAR
  * ========================= */
 export default function AdminTopbar({ onOpenSidebar }) {
+  const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, isAuthenticated, logout } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
+
+  const desktopQuickActions = [
+    {
+      label: 'Dashboard',
+      path: '/admin/dashboard',
+      icon: <FiGrid size={18} />
+    },
+    {
+      label: 'Products',
+      path: '/admin/products',
+      icon: <FiBox size={18} />
+    },
+    {
+      label: 'Orders',
+      path: '/admin/orders',
+      icon: <FiShoppingCart size={18} />
+    },
+    {
+      label: 'Promotions',
+      path: '/admin/promotions',
+      icon: <FiTag size={18} />
+    }
+  ]
+
+  const isQuickActionActive = (path) =>
+    pathname === path || pathname.startsWith(`${path}/`)
 
   // Đóng dropdown khi click bên ngoài
   useEffect(() => {
@@ -80,21 +114,16 @@ export default function AdminTopbar({ onOpenSidebar }) {
 
         {/* Desktop Quick Actions */}
         <div className="hidden lg:flex items-center gap-1">
-          <IconButton onClick={() => navigate('/admin/dashboard')}>
-            <FiGrid size={18} />
-          </IconButton>
-          
-          <IconButton badge={3}>
-            <FiMail size={18} />
-          </IconButton>
-          
-          <IconButton onClick={() => navigate('/admin/users')}>
-            <FiUsers size={18} />
-          </IconButton>
-          
-          <IconButton>
-            <FiStar size={18} />
-          </IconButton>
+          {desktopQuickActions.map(({ label, path, icon }) => (
+            <IconButton
+              key={path}
+              label={label}
+              active={isQuickActionActive(path)}
+              onClick={() => navigate(path)}
+            >
+              {icon}
+            </IconButton>
+          ))}
         </div>
 
         {/* Divider */}
@@ -113,11 +142,6 @@ export default function AdminTopbar({ onOpenSidebar }) {
         {/* Notifications */}
         <IconButton badge={5}>
           <FiBell size={18} />
-        </IconButton>
-
-        {/* Settings */}
-        <IconButton onClick={() => navigate('/admin/settings')}>
-          <FiSettings size={18} />
         </IconButton>
 
         {/* Divider */}
@@ -167,29 +191,7 @@ export default function AdminTopbar({ onOpenSidebar }) {
               </div>
 
               {/* Menu Items */}
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    navigate('/admin/account')
-                    setDropdownOpen(false)
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <FiUser size={16} className="text-slate-400" />
-                  Thông tin tài khoản
-                </button>
-
-                <button
-                  onClick={() => {
-                    navigate('/admin/settings')
-                    setDropdownOpen(false)
-                  }}
-                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  <FiSettings size={16} className="text-slate-400" />
-                  Cài đặt
-                </button>
-              </div>
+              
 
               {/* Logout */}
               <div className="border-t border-slate-100">

@@ -148,9 +148,6 @@ export default function AdminSideBar({ open, onClose }) {
                 <DropdownItem to="/admin/products/pc-create" icon={PcCase} onClick={onClose}>
                   Tạo PC
                 </DropdownItem>
-                <DropdownItem to="/admin/orders" icon={ShoppingCart} onClick={onClose}>
-                  Thêm linh kiện
-                </DropdownItem>
               </div>
             )}
           </div>
