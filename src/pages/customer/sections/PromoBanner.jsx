@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Clock, TicketPercent, Zap } from "lucide-react";
 
-import { apiService } from "../../../config/axios";
+import { promotionService } from "../../../services/promotionService";
 import {
   cacheCustomerPromotions,
   formatDateTime,
   formatPromotionValue,
-  getPromotionScopeLabel,
   getPromotionStatus,
   getPromotionTypeLabel,
 } from "../../admin/Promotions/promotionHelpers";
@@ -115,15 +114,15 @@ export default function PromoBanner() {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-promotions-banner"],
     queryFn: async () => {
-      const res = await apiService.get("/promotion/customer_guest/all", {
+      const response = await promotionService.getCustomerPromotions({
         page: 1,
         pageSize: 6,
         sortBy: "CreatedAt",
         isDescending: true,
       });
 
-      if (res?.statusCode === 200) {
-        return res.value?.items || [];
+      if (response.succeeded) {
+        return response.value?.items || [];
       }
 
       return [];
