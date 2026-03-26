@@ -31,6 +31,7 @@ import CategoryDetailsPage from "../pages/admin/Categories/CategoryDetailsPage.j
 import BrandPage from "../pages/admin/Brands/BrandPage.jsx";
 import AdminTicketPage from "../pages/admin/Ticket/TicketPage.jsx";
 import AdminTicketDetailPage from "../pages/admin/Ticket/TicketDetailPage.jsx";
+import AdminDashboardPage from "../pages/admin/AdminDashboardPage.jsx";
 
 import StaffProductPage from "../pages/staff/Product/ProductPage.jsx";
 import StaffProductDetailPage from "../pages/staff/Product/ProductDetailPage.jsx";
@@ -79,7 +80,8 @@ export const router = createBrowserRouter([
     path: "/admin",
     element: <ProtectedRoute requiredRole="Admin"><AdminLayout /></ProtectedRoute>,
     children: [
-      { index: true, element: <h2>Admin Home Page</h2> },
+      { index: true, element: <Navigate to="/admin/dashboard" replace /> },
+      { path: "dashboard", element: <AdminDashboardPage /> },
       { path: "users", element: <UserPage /> },
       { path: "users/:userId", element: <UserDetailPage /> },
       { path: "users/:userId/edit", element: <UserUpdatePage /> },

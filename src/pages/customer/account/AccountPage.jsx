@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { useAuth } from "../../../store/authContext.jsx";
+
 import { apiService } from "../../../config/axios";
 import AccountSidebar from "../../../components/ui/AccountSideBar.jsx";
+import { useAuth } from "../../../store/authContext.jsx";
 import AccountInfoTab from "./tabs/AccountInfoTab";
-import OrderTab from "./tabs/OrderTab";
 import OrderDetailTab from "./tabs/OrderDetailTab";
+import OrderTab from "./tabs/OrderTab";
 import TicketTab from "./tabs/TicketTab";
+import VoucherTab from "./tabs/VoucherTab";
 
 const buildUpdatePayload = (source) => ({
   firstName: source.firstName,
@@ -52,22 +54,25 @@ export default function AccountPage() {
   });
 
   const setField = (key, value) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((previous) => ({ ...previous, [key]: value }));
 
   const { data: user, isLoading } = useQuery({
     enabled: !!token,
     queryKey: ["user-me"],
     queryFn: async () => {
-      const res = await apiService.get("/user/me");
-      if (res?.statusCode !== 200) {
+      const response = await apiService.get("/user/me");
+
+      if (response?.statusCode !== 200) {
         throw new Error("Không lấy được thông tin người dùng");
       }
-      return res.value;
+
+      return response.value;
     },
   });
 
   useEffect(() => {
     if (!user) return;
+
     setForm({
       id: user.id ?? "",
       firstName: user.firstName ?? "",
@@ -85,34 +90,38 @@ export default function AccountPage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await apiService.put("/user/me", payload);
-      if (res?.statusCode !== 200) {
-        throw new Error(res?.message || "Cập nhật thông tin thất bại");
+      const response = await apiService.put("/user/me", payload);
+
+      if (response?.statusCode !== 200) {
+        throw new Error(response?.message || "Cập nhật thông tin thất bại");
       }
-      return res;
+
+      return response;
     },
     onSuccess: () => {
       toast.success("Cập nhật thông tin thành công");
       queryClient.invalidateQueries({ queryKey: ["user-me"] });
     },
-    onError: (err) =>
-      toast.error(err?.message || "Cập nhật thông tin thất bại"),
+    onError: (error) =>
+      toast.error(error?.message || "Cập nhật thông tin thất bại"),
   });
 
   const syncAvatarMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await apiService.put("/user/me", payload);
-      if (res?.statusCode !== 200) {
-        throw new Error(res?.message || "Không thể cập nhật ảnh đại diện");
+      const response = await apiService.put("/user/me", payload);
+
+      if (response?.statusCode !== 200) {
+        throw new Error(response?.message || "Không thể cập nhật ảnh đại diện");
       }
-      return res;
+
+      return response;
     },
     onSuccess: () => {
       toast.success("Đã cập nhật ảnh đại diện");
       queryClient.invalidateQueries({ queryKey: ["user-me"] });
     },
-    onError: (err) =>
-      toast.error(err?.message || "Cập nhật ảnh đại diện thất bại"),
+    onError: (error) =>
+      toast.error(error?.message || "Cập nhật ảnh đại diện thất bại"),
   });
 
   const onSubmit = (event) => {
@@ -127,7 +136,7 @@ export default function AccountPage() {
 
     syncAvatarMutation.mutate(buildUpdatePayload(nextForm), {
       onError: () => {
-        setForm((prev) => ({ ...prev, avatarImage: previousAvatar }));
+        setForm((previous) => ({ ...previous, avatarImage: previousAvatar }));
       },
     });
   };
@@ -172,23 +181,28 @@ export default function AccountPage() {
     updateProfileMutation.isPending || syncAvatarMutation.isPending;
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6 overflow-x-hidden">
-      <div className="hidden md:block text-sm text-slate-500 mb-4">
+    <div className="mx-auto max-w-6xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
+      <div className="mb-4 hidden text-sm text-slate-500 md:block">
         <Link to="/">Trang chủ</Link> / Tài khoản
       </div>
 
-      <div className="md:hidden mb-4 bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
-        <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:hidden">
+        <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
           <img
             src={form.avatarImage || "/AnonymouseUser.png"}
             alt="avatar"
-            className="h-10 w-10 rounded-full object-cover border border-slate-200"
+            className="h-10 w-10 rounded-full border border-slate-200 object-cover"
           />
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-800 truncate">{fullName}</div>
-            <div className="text-xs text-slate-500 truncate">{form.email || "Chưa có email"}</div>
+            <div className="truncate text-sm font-semibold text-slate-800">
+              {fullName}
+            </div>
+            <div className="truncate text-xs text-slate-500">
+              {form.email || "Chưa có email"}
+            </div>
           </div>
         </div>
+
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -237,15 +251,15 @@ export default function AccountPage() {
           <button
             type="button"
             onClick={onLogout}
-            className="h-9 rounded-lg text-sm font-medium bg-red-50 text-red-600 col-span-2"
+            className="col-span-2 h-9 rounded-lg bg-red-50 text-sm font-medium text-red-600"
           >
             Đăng xuất
           </button>
         </div>
       </div>
 
-      <div className="flex gap-6 min-w-0">
-        <div className="hidden md:block shrink-0">
+      <div className="flex min-w-0 gap-6">
+        <div className="hidden shrink-0 md:block">
           <AccountSidebar
             user={{ ...form, fullName }}
             activeTab={activeTab}
@@ -270,16 +284,15 @@ export default function AccountPage() {
         )}
 
         {activeTab === "orders" && selectedOrderId && (
-          <OrderDetailTab orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />
+          <OrderDetailTab
+            orderId={selectedOrderId}
+            onBack={() => setSelectedOrderId(null)}
+          />
         )}
 
         {activeTab === "ticket" && <TicketTab />}
 
-        {activeTab === "voucher" && (
-          <div className="flex-1 min-w-0 bg-white rounded-lg p-6 text-sm text-slate-500">
-            Tab này sẽ làm sau
-          </div>
-        )}
+        {activeTab === "voucher" && <VoucherTab />}
       </div>
     </div>
   );

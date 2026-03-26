@@ -1,10 +1,13 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, User, ShoppingCart, Menu } from "lucide-react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import useCartAccess from "../../hooks/useCartAccess";
 import { selectCartItemCount } from "../../store/slices/cartSlice";
+
+const SEARCH_HISTORY_STORAGE_KEY = "tech-express-search-history";
+const MAX_SEARCH_HISTORY_ITEMS = 6;
 
 const HEADER_COPY = {
   searchRequired: "Vui lòng nhập từ khóa tìm kiếm",
@@ -20,19 +23,66 @@ const HEADER_COPY = {
   careers: "TUYỂN DỤNG",
 };
 
+const SEARCH_HISTORY_PLACEHOLDER = "Lịch sử tìm kiếm sẽ hiển thị tại đây";
+
+const readSearchHistory = () => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const rawHistory = window.localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY);
+    if (!rawHistory) return [];
+
+    const parsedHistory = JSON.parse(rawHistory);
+    if (!Array.isArray(parsedHistory)) return [];
+
+    return parsedHistory
+      .filter((item) => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, MAX_SEARCH_HISTORY_ITEMS);
+  } catch {
+    return [];
+  }
+};
+
+const writeSearchHistory = (history) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(history));
+};
+
 export default function Header({ onToggleCategorySidebar }) {
   const { user, loading, canUseCart } = useCartAccess();
   const itemCount = useSelector(selectCartItemCount);
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState("");
+  const [searchHistory, setSearchHistory] = useState([]);
   const showCartEntryPoints = !loading && canUseCart;
 
-  const handleSearchSubmit = () => {
-    const trimmedKeyword = keyword.trim();
+  useEffect(() => {
+    setSearchHistory(readSearchHistory());
+  }, []);
+
+  const updateSearchHistory = (trimmedKeyword) => {
+    setSearchHistory((currentHistory) => {
+      const nextHistory = [
+        trimmedKeyword,
+        ...currentHistory.filter((item) => item.trim() !== trimmedKeyword),
+      ].slice(0, MAX_SEARCH_HISTORY_ITEMS);
+
+      writeSearchHistory(nextHistory);
+      return nextHistory;
+    });
+  };
+
+  const handleSearchSubmit = (submittedKeyword = keyword) => {
+    const trimmedKeyword = submittedKeyword.trim();
     if (!trimmedKeyword) {
       toast.info(HEADER_COPY.searchRequired);
       return;
     }
+
+    updateSearchHistory(trimmedKeyword);
+    setKeyword(trimmedKeyword);
 
     const query = new URLSearchParams({
       search: trimmedKeyword,
@@ -52,10 +102,38 @@ export default function Header({ onToggleCategorySidebar }) {
     }
   };
 
+  const handleHistoryClick = (historyItem) => {
+    setKeyword(historyItem);
+    handleSearchSubmit(historyItem);
+  };
+
+  const renderSearchHistory = (className) => {
+    if (!searchHistory.length) {
+      return <div className={className}>{SEARCH_HISTORY_PLACEHOLDER}</div>;
+    }
+
+    return (
+      <div className={className}>
+        {searchHistory.map((item, index) => (
+          <span key={`${item}-${index}`}>
+            {index > 0 ? <span aria-hidden="true"> . </span> : null}
+            <button
+              type="button"
+              onClick={() => handleHistoryClick(item)}
+              className="inline transition-colors hover:text-white"
+            >
+              {item}
+            </button>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <header className="w-full">
       <div className="bg-[#0090D0] lg:hidden">
-        <div className="px-4 py-3 space-y-3">
+        <div className="px-4 py-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
@@ -106,9 +184,7 @@ export default function Header({ onToggleCategorySidebar }) {
             </button>
           </div>
 
-          <div className="text-[11px] text-white/80 truncate">
-            ban phim keychron . MSI Cyborg 15 . ASUS OLED . Custom PC Builder . Razer . USB . Loa
-          </div>
+          {renderSearchHistory("text-[11px] text-white/80 truncate")}
 
           <NavLink
             to="/custom-pc-builder"
@@ -146,9 +222,9 @@ export default function Header({ onToggleCategorySidebar }) {
               </button>
             </div>
 
-            <div className="text-[11px] text-white/80 mt-1 truncate">
-              ban phim keychron . MSI Cyborg 15 . ASUS OLED . PC Gaming . Razer . USB . Loa
-            </div>
+            {renderSearchHistory(
+              "text-[11px] text-white/80 mt-1 truncate"
+            )}
           </div>
 
           <NavLink
@@ -187,20 +263,8 @@ export default function Header({ onToggleCategorySidebar }) {
               {HEADER_COPY.checkout}
             </NavLink>
           ) : null}
-          <NavLink className="hover:text-yellow-400" to="/installment">
-            {HEADER_COPY.installment}
-          </NavLink>
-          <NavLink className="hover:text-yellow-400" to="/contact">
-            {HEADER_COPY.contact}
-          </NavLink>
           <NavLink className="hover:text-yellow-400" to="/support">
             {HEADER_COPY.support}
-          </NavLink>
-          <NavLink className="hover:text-yellow-400" to="/blog">
-            {HEADER_COPY.library}
-          </NavLink>
-          <NavLink className="hover:text-yellow-400" to="/careers">
-            {HEADER_COPY.careers}
           </NavLink>
         </div>
       </div>

@@ -117,7 +117,7 @@ export default function AdminSideBar({ open, onClose }) {
         </div>
 
         <nav className="space-y-1 p-3">
-          <SideLink to="/admin" icon={LayoutDashboard} end onClick={onClose}>
+          <SideLink to="/admin/dashboard" icon={LayoutDashboard} end onClick={onClose}>
             Dashboard
           </SideLink>
 
@@ -147,9 +147,6 @@ export default function AdminSideBar({ open, onClose }) {
                 </DropdownItem>
                 <DropdownItem to="/admin/products/pc-create" icon={PcCase} onClick={onClose}>
                   Tạo PC
-                </DropdownItem>
-                <DropdownItem to="/admin/orders" icon={ShoppingCart} onClick={onClose}>
-                  Thêm linh kiện
                 </DropdownItem>
               </div>
             )}
