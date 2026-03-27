@@ -22,6 +22,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { apiService } from "../../config/axios";
 import useCartAccess from "../../hooks/useCartAccess";
+import useCustomPcCategories from "../../hooks/useCustomPcCategories";
 import { customPcService } from "../../services/customPcService";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
@@ -29,7 +30,6 @@ import { getCustomPcGuestSessionId, getOrCreateCustomPcGuestSessionId } from "..
 import { buildTicketEntryPath } from "../../utils/ticket";
 
 const PAGE_SIZE = 12;
-const CUSTOM_PC_PARENT_ID = "ea7f1e64-8abf-49fe-a38f-f75528a1f832";
 
 const CATEGORY_PRIORITY_RULES = [
   { key: "cpu", keywords: ["cpu", "vi xu ly", "bo xu ly", "processor"] },
@@ -282,14 +282,7 @@ export default function CustomPcBuilderPage() {
     }
   }, [activeBuildId, builds]);
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["custom-pc-categories"],
-    queryFn: async () => {
-      const response = await apiService.get("/Category", { ParentId: CUSTOM_PC_PARENT_ID, Page: 1 });
-      return response?.statusCode === 200 && Array.isArray(response.value?.items) ? response.value.items : [];
-    },
-    staleTime: 300000,
-  });
+  const { data: categories = [] } = useCustomPcCategories();
 
   const orderedCategories = useMemo(() => sortCategories(categories), [categories]);
   const selectedCategory = useMemo(

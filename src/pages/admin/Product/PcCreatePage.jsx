@@ -30,10 +30,10 @@ import { apiService } from "../../../config/axios";
 import Breadcrumb from "../../../components/ui/Breadcrumb";
 import CategorySelect from "../../../components/ui/select/CategorySelect";
 import BrandSelect from "../../../components/ui/select/BrandSelect";
+import useCustomPcCategories from "../../../hooks/useCustomPcCategories";
 import { productPcService } from "../../../services/productPcService";
 import { uploadProductImages, validateImageFiles } from "../../../utils/uploadImage";
 
-const CUSTOM_PC_PARENT_ID = "ea7f1e64-8abf-49fe-a38f-f75528a1f832";
 const COMPONENT_PAGE_SIZE = 8;
 
 const inputClass =
@@ -222,17 +222,7 @@ export default function PcCreatePage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: componentCategoriesData = [] } = useQuery({
-    queryKey: ["custom-pc-categories"],
-    queryFn: async () => {
-      const res = await apiService.get("/Category", {
-        ParentId: CUSTOM_PC_PARENT_ID,
-        Page: 1,
-      });
-      return res?.statusCode === 200 ? res.value?.items || [] : [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: componentCategoriesData = [] } = useCustomPcCategories();
 
   const orderedComponentCategories = useMemo(
     () => sortCategories(componentCategoriesData),
