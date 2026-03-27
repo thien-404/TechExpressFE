@@ -238,6 +238,7 @@ export default function CheckoutPage() {
 
   const didPrefillRef = useRef(false);
   const lastPromotionContextRef = useRef("");
+  const promotionRequestSequenceRef = useRef(0);
 
   const isPaymentReturn = searchParams.get("paymentReturn") === "1";
   const orderCode = searchParams.get("orderCode") || "";
@@ -480,15 +481,35 @@ export default function CheckoutPage() {
 
   const normalizedPromotionCode = promotionCode.trim().toUpperCase();
   const normalizedTrackingPhone = normalizePhone(form.trackingPhone);
-  const promotionContextKey = `${lastAppliedPromotionCode}|${selectedItemsSignature}|${normalizedTrackingPhone}`;
+  const activePromotionCode = lastAppliedPromotionCode.trim().toUpperCase();
+  const promotionContextKey = `${activePromotionCode}|${selectedItemsSignature}|${normalizedTrackingPhone}`;
+  const canCalculatePromotion =
+    selectedItems.length > 0 && PHONE_REGEX.test(normalizedTrackingPhone);
+  const hasPromotionState =
+    Boolean(promotionResult) ||
+    Boolean(promotionError) ||
+    Object.keys(selectedFreeItemsByPromotionId).length > 0;
 
   const clearPromotionState = useCallback(
-    ({ preserveCode = true, errorMessage = "" } = {}) => {
+    ({
+      preserveCode = true,
+      preserveAppliedCode = false,
+      errorMessage = "",
+      contextKey = "",
+      invalidateRequest = false,
+    } = {}) => {
+      if (invalidateRequest) {
+        promotionRequestSequenceRef.current += 1;
+        setPromotionLoading(false);
+      }
+
       setPromotionResult(null);
-      setLastAppliedPromotionCode("");
       setSelectedFreeItemsByPromotionId({});
       setPromotionError(errorMessage);
-      lastPromotionContextRef.current = "";
+      setLastAppliedPromotionCode((prev) =>
+        preserveAppliedCode ? prev : "",
+      );
+      lastPromotionContextRef.current = contextKey;
 
       if (!preserveCode) {
         setPromotionCode("");
@@ -498,51 +519,80 @@ export default function CheckoutPage() {
   );
 
   const calculatePromotion = useCallback(
-    async ({ code, silent = false }) => {
-      const nextCode = (code || promotionCode).trim().toUpperCase();
+    async ({ code, mode = "manual" } = {}) => {
+      const isManual = mode === "manual";
+      const nextCode = (code || "").trim().toUpperCase();
       const nextPhone = normalizePhone(form.trackingPhone);
+      const nextContextKey = `${nextCode}|${selectedItemsSignature}|${nextPhone}`;
+      const autoContextKey = `|${selectedItemsSignature}|${nextPhone}`;
+      const requestId = promotionRequestSequenceRef.current + 1;
+      promotionRequestSequenceRef.current = requestId;
 
-      if (!nextCode) {
+      if (isManual && !nextCode) {
         const message = "Vui lòng nhập mã khuyến mãi.";
-        if (!silent) {
-          toast.error(message);
-        }
-        clearPromotionState({ preserveCode: true, errorMessage: message });
+        clearPromotionState({
+          preserveCode: true,
+          errorMessage: message,
+          contextKey: autoContextKey,
+        });
+        toast.error(message);
         return null;
       }
 
       if (!PHONE_REGEX.test(nextPhone)) {
-        const message = "Vui lòng nhập số điện thoại hợp lệ để kiểm tra khuyến mãi.";
-        if (!silent) {
+        if (isManual) {
+          const message =
+            "Vui lòng nhập số điện thoại hợp lệ để kiểm tra khuyến mãi.";
+          clearPromotionState({
+            preserveCode: true,
+            errorMessage: message,
+          });
           toast.error(message);
+        } else {
+          clearPromotionState({
+            preserveCode: true,
+            preserveAppliedCode: Boolean(nextCode),
+            contextKey: "",
+          });
         }
-        clearPromotionState({ preserveCode: true, errorMessage: message });
         return null;
       }
 
       if (selectedItems.length === 0) {
-        const message = "Không có sản phẩm nào được chọn để áp dụng khuyến mãi.";
-        if (!silent) {
+        if (isManual) {
+          const message =
+            "Không có sản phẩm nào được chọn để áp dụng khuyến mãi.";
+          clearPromotionState({
+            preserveCode: true,
+            errorMessage: message,
+          });
           toast.error(message);
+        } else {
+          clearPromotionState({
+            preserveCode: true,
+            preserveAppliedCode: Boolean(nextCode),
+            contextKey: "",
+          });
         }
-        clearPromotionState({ preserveCode: true, errorMessage: message });
         return null;
       }
 
       setPromotionLoading(true);
-      if (!silent) {
-        setPromotionError("");
-      }
+      setPromotionError("");
 
       try {
         const response = await promotionService.calculatePromotion({
-          codes: [nextCode],
+          codes: nextCode ? [nextCode] : [],
           checkoutItems: selectedItems.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
           })),
           phone: nextPhone,
         });
+
+        if (requestId !== promotionRequestSequenceRef.current) {
+          return null;
+        }
 
         if (!response.succeeded) {
           throw new Error(response.message || "Không thể tính khuyến mãi.");
@@ -557,11 +607,13 @@ export default function CheckoutPage() {
 
         setPromotionResult(result);
         setLastAppliedPromotionCode(nextCode);
-        setPromotionCode(nextCode);
+        if (isManual) {
+          setPromotionCode(nextCode);
+        }
         setPromotionError("");
-        lastPromotionContextRef.current = `${nextCode}|${selectedItemsSignature}|${nextPhone}`;
+        lastPromotionContextRef.current = nextContextKey;
 
-        if (!silent) {
+        if (isManual) {
           if ((result.appliedPromotions || []).length > 0) {
             toast.success("Đã áp dụng mã khuyến mãi.");
           } else if ((result.unappliedCodeMessages || []).length > 0) {
@@ -573,49 +625,67 @@ export default function CheckoutPage() {
 
         return result;
       } catch (error) {
+        if (requestId !== promotionRequestSequenceRef.current) {
+          return null;
+        }
+
         const message = error?.message || "Không thể tính khuyến mãi.";
-        clearPromotionState({ preserveCode: true, errorMessage: message });
-        if (!silent) {
+        if (isManual) {
+          clearPromotionState({
+            preserveCode: true,
+            errorMessage: message,
+            contextKey: autoContextKey,
+          });
           toast.error(message);
+        } else {
+          clearPromotionState({
+            preserveCode: true,
+            preserveAppliedCode: Boolean(nextCode),
+            contextKey: nextContextKey,
+          });
         }
         return null;
       } finally {
-        setPromotionLoading(false);
+        if (requestId === promotionRequestSequenceRef.current) {
+          setPromotionLoading(false);
+        }
       }
     },
     [
       clearPromotionState,
       form.trackingPhone,
-      promotionCode,
       selectedItems,
       selectedItemsSignature,
     ],
   );
 
   useEffect(() => {
-    if (!lastAppliedPromotionCode) return;
-    if (promotionContextKey === lastPromotionContextRef.current) return;
-
-    if (!PHONE_REGEX.test(normalizedTrackingPhone) || selectedItems.length === 0) {
-      clearPromotionState({
-        preserveCode: true,
-        errorMessage:
-          "Vui lòng nhập lại số điện thoại hoặc chọn lại sản phẩm để áp dụng khuyến mãi.",
-      });
+    if (!canCalculatePromotion) {
+      if (hasPromotionState) {
+        clearPromotionState({
+          preserveCode: true,
+          preserveAppliedCode: Boolean(activePromotionCode),
+          invalidateRequest: true,
+        });
+      } else {
+        lastPromotionContextRef.current = "";
+      }
       return;
     }
 
+    if (promotionContextKey === lastPromotionContextRef.current) return;
+
     void calculatePromotion({
-      code: lastAppliedPromotionCode,
-      silent: true,
+      code: activePromotionCode,
+      mode: "auto",
     });
   }, [
+    activePromotionCode,
+    canCalculatePromotion,
     calculatePromotion,
     clearPromotionState,
-    lastAppliedPromotionCode,
-    normalizedTrackingPhone,
+    hasPromotionState,
     promotionContextKey,
-    selectedItems.length,
   ]);
 
   const totalDiscountAmount = Math.max(
@@ -644,6 +714,16 @@ export default function CheckoutPage() {
 
     return Array.from(ids);
   }, [promotionGroups, selectedFreeItemsByPromotionId]);
+  const appliedPromotions = promotionResult?.appliedPromotions || [];
+  const unappliedPromotionMessages = promotionResult?.unappliedCodeMessages || [];
+  const hasPromotionDetails =
+    appliedPromotions.length > 0 ||
+    unappliedPromotionMessages.length > 0 ||
+    promotionGroups.length > 0;
+  const hasPromotionSummary =
+    hasPromotionDetails ||
+    totalDiscountAmount > 0 ||
+    chosenFreeProductIds.length > 0;
 
   const incompleteFreeItemSelection = useMemo(
     () =>
@@ -677,12 +757,11 @@ export default function CheckoutPage() {
     const nextValue = value.toUpperCase();
     setPromotionCode(nextValue);
 
-    if (nextValue.trim().toUpperCase() !== lastAppliedPromotionCode) {
-      setPromotionResult(null);
-      setPromotionError("");
-      setLastAppliedPromotionCode("");
-      setSelectedFreeItemsByPromotionId({});
-      lastPromotionContextRef.current = "";
+    if (nextValue.trim().toUpperCase() !== activePromotionCode) {
+      clearPromotionState({
+        preserveCode: true,
+        invalidateRequest: true,
+      });
     }
   };
 
@@ -772,7 +851,7 @@ export default function CheckoutPage() {
       paymentOption: PAYMENT_OPTION.QR,
       pickupStoreId: "",
     });
-    clearPromotionState({ preserveCode: false });
+    clearPromotionState({ preserveCode: false, invalidateRequest: true });
   };
 
   const handleSubmit = async (event) => {
@@ -1216,7 +1295,12 @@ export default function CheckoutPage() {
               />
               <button
                 type="button"
-                onClick={() => calculatePromotion({ code: promotionCode, silent: false })}
+                onClick={() =>
+                  calculatePromotion({
+                    code: promotionCode,
+                    mode: "manual",
+                  })
+                }
                 disabled={promotionLoading || selectedItems.length === 0}
                 className="h-11 rounded-md bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -1224,7 +1308,12 @@ export default function CheckoutPage() {
               </button>
               <button
                 type="button"
-                onClick={() => clearPromotionState({ preserveCode: false })}
+                onClick={() =>
+                  clearPromotionState({
+                    preserveCode: false,
+                    invalidateRequest: true,
+                  })
+                }
                 className="h-11 rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Xóa mã
@@ -1242,13 +1331,15 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {lastAppliedPromotionCode && (
+            {hasPromotionDetails && (
               <div className="mt-4 space-y-3">
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-                  Đang áp dụng mã <span className="font-semibold">{lastAppliedPromotionCode}</span>.
-                </div>
+                {lastAppliedPromotionCode && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                    Đang áp dụng mã <span className="font-semibold">{lastAppliedPromotionCode}</span>.
+                  </div>
+                )}
 
-                {(promotionResult?.appliedPromotions || []).map((promotion) => (
+                {appliedPromotions.map((promotion) => (
                   <div
                     key={promotion.promotionId}
                     className="rounded-lg border border-slate-200 bg-slate-50 p-4"
@@ -1269,9 +1360,9 @@ export default function CheckoutPage() {
                   </div>
                 ))}
 
-                {(promotionResult?.unappliedCodeMessages || []).length > 0 && (
+                {unappliedPromotionMessages.length > 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                    {(promotionResult?.unappliedCodeMessages || []).map((message) => (
+                    {unappliedPromotionMessages.map((message) => (
                       <p key={message}>{message}</p>
                     ))}
                   </div>
@@ -1537,10 +1628,12 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {lastAppliedPromotionCode && (
+            {hasPromotionSummary && (
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <p className="font-semibold text-slate-900">
-                  Mã khuyến mãi: {lastAppliedPromotionCode}
+                  {lastAppliedPromotionCode
+                    ? `Mã khuyến mãi: ${lastAppliedPromotionCode}`
+                    : "Khuyến mãi tự động đang áp dụng"}
                 </p>
                 <p className="mt-1 text-slate-600">
                   Tổng giảm dự kiến: {formatPrice(totalDiscountAmount)}

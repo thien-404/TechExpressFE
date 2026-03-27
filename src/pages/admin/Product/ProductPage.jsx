@@ -416,14 +416,14 @@ export default function ProductPage() {
                     <td className="px-6 py-4">
                       <span
                         className={`font-medium ${
-                          product.stockQty <= 10
+                          product.stock <= 10
                             ? "text-red-600"
-                            : product.stockQty <= 30
+                            : product.stock <= 30
                               ? "text-orange-600"
                               : "text-green-600"
                         }`}
                       >
-                        {product.stockQty}
+                        {product.stock}
                       </span>
                     </td>
 

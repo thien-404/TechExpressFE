@@ -5,10 +5,13 @@ import Footer from '../components/layout/Footer'
 import CategorySidebar from '../components/ui/CategorySidebar'
 import CartBootstrap from '../components/customer/CartBootstrap'
 import ChatWidget from '../components/common/ChatWidget'
+import useRouteScrollReset from '../hooks/useRouteScrollReset.js'
 
 export default function CustomerLayout() {
   const location = useLocation()
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(false)
+
+  useRouteScrollReset()
 
   useEffect(() => {
     setIsCategorySidebarOpen(false)
