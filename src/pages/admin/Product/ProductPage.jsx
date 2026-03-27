@@ -10,6 +10,7 @@ import RowActions from "../../../components/common/RowActions";
 import Breadcrumb from "../../../components/ui/Breadcrumb.jsx";
 import CategorySelect from "../../../components/ui/select/CategorySelect.jsx";
 import { apiService } from "../../../config/axios";
+import { normalizeProductPricing } from "../../../utils/productPricing";
 
 /* =========================
  * STATUS BADGE
@@ -373,6 +374,8 @@ export default function ProductPage() {
                   );
                 }
 
+                const pricing = normalizeProductPricing(product);
+
                 return (
                   <tr
                     key={product.id}
@@ -409,8 +412,15 @@ export default function ProductPage() {
                       </code>
                     </td>
 
-                    <td className="px-6 py-4 font-semibold text-slate-700">
-                      {formatPrice(product.price)}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-700">{formatPrice(pricing.displayPrice)}</span>
+                        {pricing.hasDiscount ? (
+                          <span className="text-xs text-slate-400 line-through">
+                            {formatPrice(pricing.originalPrice)}
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
 
                     <td className="px-6 py-4">

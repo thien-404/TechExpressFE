@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import useCartAccess from "../../hooks/useCartAccess";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
+import { normalizeProductPricing } from "../../utils/productPricing";
 
 const PRODUCT_CARD_COPY = {
   missingProduct: "Không tìm thấy thông tin sản phẩm",
@@ -27,6 +28,7 @@ export default function ProductCard({ product, badge, showRank }) {
   const dispatch = useDispatch();
   const { isAuthenticated, loading, canUseCart } = useCartAccess();
   const [hovered, setHovered] = useState(false);
+  const pricing = normalizeProductPricing(product);
 
   const stock = Math.max(Number(product.stockQty ?? product.stock ?? 0) || 0, 0);
   const isOutOfStock = product.status === "Unavailable" || stock === 0;
@@ -158,8 +160,11 @@ export default function ProductCard({ product, badge, showRank }) {
           {product.name}
         </h3>
 
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-red-600">{formatPrice(product.price)}</span>
+        <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+          <span className="text-lg font-bold text-red-600">{formatPrice(pricing.displayPrice)}</span>
+          {pricing.hasDiscount ? (
+            <span className="text-sm text-slate-400 line-through">{formatPrice(pricing.originalPrice)}</span>
+          ) : null}
         </div>
 
         <div className="flex gap-2 mt-3 sm:hidden">

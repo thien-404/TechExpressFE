@@ -27,6 +27,7 @@ import { customPcService } from "../../services/customPcService";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
 import { getCustomPcGuestSessionId, getOrCreateCustomPcGuestSessionId } from "../../utils/customPcSession";
+import { normalizeProductPricing } from "../../utils/productPricing";
 import { buildTicketEntryPath } from "../../utils/ticket";
 
 const PAGE_SIZE = 12;
@@ -67,6 +68,11 @@ const normalizeProduct = (product) =>
         id: product.id ?? product.productId ?? "",
         name: product.name ?? product.productName ?? "Sản phẩm chưa có tên",
         price: Number(product.price ?? product.unitPrice ?? 0) || 0,
+        discountValue: Number(product.discountValue ?? 0) || 0,
+        priceAfterDiscount:
+          product.priceAfterDiscount === null || product.priceAfterDiscount === undefined
+            ? null
+            : Number(product.priceAfterDiscount) || 0,
         firstImageUrl: product.firstImageUrl ?? product.thumbnailUrl?.[0] ?? product.thumbnailUrl ?? product.imageUrl ?? "",
         categoryName: product.categoryName ?? product.category?.name ?? "Linh kiện khác",
         categoryId: product.categoryId ?? product.category?.id ?? null,
@@ -940,6 +946,7 @@ export default function CustomPcBuilderPage() {
                         const stock =
                           product.stockQty === null || product.stockQty === undefined ? null : Math.max(Number(product.stockQty ?? 0) || 0, 0);
                         const isOutOfStock = stock !== null && stock === 0;
+                        const pricing = normalizeProductPricing(product);
                         const disabled =
                           product.status === "Unavailable" ||
                           isOutOfStock ||
@@ -964,7 +971,14 @@ export default function CustomPcBuilderPage() {
                                   <span className="text-slate-600">
                                     Kho hàng: {stock === null ? "Không rõ tồn kho" : stock > 0 ? "Còn hàng" : "Hết hàng"}
                                   </span>
-                                  <span className="font-semibold text-[#0090D0]">{money(product.price)}</span>
+                                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="font-semibold text-[#0090D0]">{money(pricing.displayPrice)}</span>
+                                    {pricing.hasDiscount ? (
+                                      <span className="text-xs text-slate-400 line-through">
+                                        {money(pricing.originalPrice)}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
                                 <Link to={`/products/${product.id}`} className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#0090D0] hover:underline">
                                   Xem chi tiết <ExternalLink size={14} />

@@ -8,6 +8,7 @@ import Pagination from "../../../components/common/Pagination";
 import Breadcrumb from "../../../components/ui/Breadcrumb.jsx";
 import CategorySelect from "../../../components/ui/select/CategorySelect.jsx";
 import { apiService } from "../../../config/axios";
+import { normalizeProductPricing } from "../../../utils/productPricing";
 
 const T = {
   home: "Trang ch\u1ee7",
@@ -298,6 +299,7 @@ export default function StaffProductPage() {
                 }
 
                 const stock = product.stockQty ?? product.stock ?? 0;
+                const pricing = normalizeProductPricing(product);
 
                 return (
                   <tr
@@ -326,7 +328,16 @@ export default function StaffProductPage() {
                     <td className="px-6 py-4">
                       <code className="rounded bg-slate-100 px-2 py-1 text-xs">{product.sku}</code>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-slate-700">{formatPrice(product.price)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-slate-700">{formatPrice(pricing.displayPrice)}</span>
+                        {pricing.hasDiscount ? (
+                          <span className="text-xs text-slate-400 line-through">
+                            {formatPrice(pricing.originalPrice)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <span
                         className={`font-medium ${

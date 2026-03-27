@@ -8,6 +8,7 @@ import {
   FiImage,
   FiShield
 } from "react-icons/fi"
+import { normalizeProductPricing } from "../../../../utils/productPricing"
 
 /* =========================
  * STATUS BADGE
@@ -64,10 +65,11 @@ const formatPrice = (price) =>
 /* =========================
  * PRODUCT INFO TAB
  * ========================= */
-export default function ProductInfoTab({ product, brandName }) {
+export default function ProductInfoTab({ product }) {
   if (!product) return null
 
   const images = product.thumbnailUrl || []
+  const pricing = normalizeProductPricing(product)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -124,7 +126,16 @@ export default function ProductInfoTab({ product, brandName }) {
             <InfoRow
               icon={FiDollarSign}
               label="Giá"
-              value={formatPrice(product.price)}
+              value={
+                <div className="space-y-1">
+                  <div>{formatPrice(pricing.displayPrice)}</div>
+                  {pricing.hasDiscount ? (
+                    <div className="text-xs font-normal text-slate-400 line-through">
+                      {formatPrice(pricing.originalPrice)}
+                    </div>
+                  ) : null}
+                </div>
+              }
               highlight
             />
             <InfoRow

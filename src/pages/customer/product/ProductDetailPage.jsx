@@ -25,6 +25,7 @@ import {
 import useCartAccess from "../../../hooks/useCartAccess";
 import { addCartItem } from "../../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../../utils/cartAccess";
+import { normalizeProductPricing } from "../../../utils/productPricing";
 import { uploadReviewImages, validateImageFiles } from "../../../utils/uploadImage";
 
 const REVIEW_PAGE_SIZE = 5;
@@ -667,6 +668,7 @@ export default function ProductDetailPage() {
     if (product?.firstImageUrl) return [product.firstImageUrl];
     return [];
   }, [product]);
+  const pricing = useMemo(() => normalizeProductPricing(product), [product]);
 
   const reviews = useMemo(() => reviewData?.pages?.flatMap((page) => page?.items || []) ?? [], [reviewData]);
   const reviewSummary = useMemo(
@@ -918,8 +920,19 @@ export default function ProductDetailPage() {
               <span>{product.categoryName || "Không rõ danh mục"}</span>
             </div>
 
-            <div className="mt-4 flex items-center gap-3">
-              <span className="text-2xl font-bold text-red-600 md:text-3xl">{formatPrice(product.price)}</span>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="flex flex-col">
+                <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
+                  <span className="text-2xl font-bold text-red-600 md:text-3xl">
+                    {formatPrice(pricing.displayPrice)}
+                  </span>
+                  {pricing.hasDiscount ? (
+                    <span className="text-base text-slate-400 line-through">
+                      {formatPrice(pricing.originalPrice)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
               <span
                 className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                   isOutOfStock ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
@@ -1140,7 +1153,12 @@ export default function ProductDetailPage() {
         <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-4px_12px_rgba(15,23,42,0.08)] md:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-base font-bold text-red-600">{formatPrice(product.price)}</div>
+            <div className="truncate text-base font-bold text-red-600">{formatPrice(pricing.displayPrice)}</div>
+            {pricing.hasDiscount ? (
+              <div className="truncate text-xs text-slate-400 line-through">
+                {formatPrice(pricing.originalPrice)}
+              </div>
+            ) : null}
             <div className={`text-xs ${isOutOfStock ? "text-red-600" : "text-green-700"}`}>
               {isOutOfStock ? "Hết hàng" : `Còn ${stock} sản phẩm`}
             </div>

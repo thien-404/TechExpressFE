@@ -8,6 +8,7 @@ import {
   FiShield,
   FiTag,
 } from "react-icons/fi";
+import { normalizeProductPricing } from "../../../../utils/productPricing";
 
 const T = {
   productImages: "H\u00ecnh \u1ea3nh s\u1ea3n ph\u1ea9m",
@@ -78,6 +79,7 @@ export default function ProductInfoTab({ product }) {
 
   const images = product.thumbnailUrl || [];
   const stock = product.stockQty ?? product.stock ?? 0;
+  const pricing = normalizeProductPricing(product);
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -119,7 +121,21 @@ export default function ProductInfoTab({ product }) {
             <InfoRow icon={FiTag} label={T.productName} value={product.name} highlight />
             <InfoRow icon={FiPackage} label="SKU" value={product.sku} />
             <InfoRow icon={FiBox} label={T.category} value={product.categoryName || "-"} />
-            <InfoRow icon={FiDollarSign} label={T.price} value={formatPrice(product.price)} highlight />
+            <InfoRow
+              icon={FiDollarSign}
+              label={T.price}
+              value={
+                <div className="space-y-1">
+                  <div>{formatPrice(pricing.displayPrice)}</div>
+                  {pricing.hasDiscount ? (
+                    <div className="text-xs font-normal text-slate-400 line-through">
+                      {formatPrice(pricing.originalPrice)}
+                    </div>
+                  ) : null}
+                </div>
+              }
+              highlight
+            />
             <InfoRow
               icon={FiShield}
               label={T.warranty}
