@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import Breadcrumb from '../../../components/ui/Breadcrumb'
 import Pagination from '../../../components/common/Pagination'
+import { decodeToken } from '../../../utils/jwt'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -127,6 +128,7 @@ function StaffChatPanel({ session, onSessionClose }) {
 
   const sessionId = session.id
   const sessionName = session.fullName || session.phone || 'Khách'
+  const currentUserId = decodeToken(localStorage.getItem('token'))?.id
 
   // ── Dedicated SignalR connection for this session ───────────────────────────
   // Owns its own connection (same pattern as ChatArea in ChatWidget) so it does
@@ -367,9 +369,7 @@ function StaffChatPanel({ session, onSessionClose }) {
         ) : (
           messages.map((msg) => {
             const isAi = msg.isAiMessage || msg.sentByFullName === 'AI Assistant'
-            // Staff messages have sentById set and are not AI
-            const isStaff = !isAi && msg.sentById != null
-            const alignRight = isStaff
+            const alignRight = !isAi && msg.sentById === currentUserId
 
             return (
               <div key={msg.id} className={`flex ${alignRight ? 'justify-end' : 'justify-start'}`}>
