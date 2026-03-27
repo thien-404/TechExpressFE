@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Search, Package, Loader2, SlidersHorizontal } from "lucide-react";
 import { apiService } from "../../../config/axios";
 import ProductCard from "../../../components/customer/ProductCard";
+import useCategoriesUi from "../../../hooks/useCategoriesUi.js";
 
 const PAGE_SIZE = 12;
 
 export default function ProductListingPage() {
   const [searchParams] = useSearchParams();
   const categoryId = searchParams.get("category");
+  const { categoryMap, isLoading: isCategoriesLoading } = useCategoriesUi();
 
   const [searchInput, setSearchInput] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,20 +28,10 @@ export default function ProductListingPage() {
     setSearchTerm("");
   }, [categoryId]);
 
-  const { data: categoryName } = useQuery({
-    queryKey: ["category-name", categoryId],
-    queryFn: async () => {
-      if (!categoryId) return null;
-      const res = await apiService.get("/category/parent");
-      if (res?.statusCode === 200) {
-        const cat = (res.value || []).find((c) => c.id === categoryId);
-        return cat?.name || null;
-      }
-      return null;
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: !!categoryId,
-  });
+  const resolvedCategoryName = categoryId ? categoryMap.get(categoryId)?.name || null : null;
+  const categoryName =
+    categoryId && isCategoriesLoading ? "Đang tải danh mục..." : resolvedCategoryName;
+  const shouldShowCategoryDescription = Boolean(resolvedCategoryName);
 
   const {
     data,
@@ -114,7 +106,7 @@ export default function ProductListingPage() {
         <h1 className="text-2xl font-bold text-slate-800">
           {categoryName || "Tất cả sản phẩm"}
         </h1>
-        {categoryName && (
+        {shouldShowCategoryDescription && (
           <p className="hidden sm:block text-sm text-slate-500 mt-1">
             Hiển thị sản phẩm trong danh mục {categoryName}
           </p>

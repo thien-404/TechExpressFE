@@ -1,49 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { apiService } from "../../config/axios";
 import { LayoutGrid, Layers, ChevronDown, X } from "lucide-react";
+import useCategoriesUi from "../../hooks/useCategoriesUi.js";
 
 export default function CategorySidebar({ isMobileOpen = false, onCloseMobile = () => {} }) {
   const [searchParams] = useSearchParams();
   const activeCategoryId = searchParams.get("category");
   const [expanded, setExpanded] = useState(new Set());
 
-  const { data: allCategories = [], isLoading } = useQuery({
-    queryKey: ["categories-sidebar"],
-    queryFn: async () => {
-      const res = await apiService.get("/Category/ui");
-      if (res?.statusCode === 200) {
-        return res.value || [];
-      }
-      return [];
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const rootCategories = useMemo(() => {
-    const map = new Map();
-    const roots = [];
-
-    allCategories.forEach((cat) => {
-      map.set(cat.id, { ...cat, children: [] });
-    });
-
-    allCategories.forEach((cat) => {
-      if (cat.parentCategoryId) {
-        const parent = map.get(cat.parentCategoryId);
-        if (parent) {
-          parent.children.push(map.get(cat.id));
-        } else {
-          roots.push(map.get(cat.id));
-        }
-      } else {
-        roots.push(map.get(cat.id));
-      }
-    });
-
-    return roots;
-  }, [allCategories]);
+  const { categories: allCategories, rootCategories, isLoading } = useCategoriesUi();
 
   useEffect(() => {
     if (!activeCategoryId) return;

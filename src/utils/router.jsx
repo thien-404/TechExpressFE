@@ -44,6 +44,7 @@ import StaffTicketDetailPage from "../pages/staff/Ticket/TicketDetailPage.jsx";
 
 import AccountPage from "../pages/customer/account/AccountPage.jsx";
 import HomePage from "../pages/customer/HomePage.jsx";
+import CategoriesPage from "../pages/customer/CategoriesPage.jsx";
 import ProductListingPage from "../pages/customer/product/ProductListingPage.jsx";
 import CartPage from "../pages/customer/CartPage.jsx";
 import CheckoutPage from "../pages/customer/CheckoutPage.jsx";
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
     element: <CustomerLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "categories", element: <CategoriesPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
