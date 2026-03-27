@@ -121,6 +121,7 @@ export const AuthProvider = ({ children }) => {
 
     localStorage.setItem('token', newToken)
     localStorage.setItem('user', JSON.stringify(decodedUser))
+    localStorage.removeItem('techexpress_guest_chat')
 
     setToken(newToken)
     setUser(decodedUser)
