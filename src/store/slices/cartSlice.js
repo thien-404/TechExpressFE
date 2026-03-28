@@ -20,6 +20,86 @@ const initialState = {
   lastSyncedAt: null,
 };
 
+function toFiniteNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toNullableFiniteNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Backend cart subtotal is promotion-aware; keep raw and discounted totals separate.
+function buildCartPricingFields(
+  {
+    quantity,
+    unitPrice,
+    discountValue,
+    promotionType,
+    discountAmountPerItem,
+    discountedSubTotal,
+  },
+  { useProvidedDiscountedSubTotal = true } = {},
+) {
+  const safeQuantity = Math.max(Number(quantity) || 0, 0);
+  const safeUnitPrice = Math.max(toFiniteNumber(unitPrice), 0);
+  const subTotal = safeUnitPrice * safeQuantity;
+  const normalizedDiscountValue = toNullableFiniteNumber(discountValue);
+  const normalizedDiscountAmountPerItem = Math.max(
+    toFiniteNumber(discountAmountPerItem),
+    0,
+  );
+  const computedDiscountedSubTotal = Math.max(
+    subTotal - normalizedDiscountAmountPerItem * safeQuantity,
+    0,
+  );
+  const parsedDiscountedSubTotal = useProvidedDiscountedSubTotal
+    ? toNullableFiniteNumber(discountedSubTotal)
+    : null;
+  const normalizedDiscountedSubTotal =
+    parsedDiscountedSubTotal === null
+      ? computedDiscountedSubTotal
+      : Math.max(parsedDiscountedSubTotal, 0);
+  const lineDiscountAmount = Math.max(
+    normalizedDiscountAmountPerItem * safeQuantity,
+    0,
+  );
+
+  return {
+    quantity: safeQuantity,
+    unitPrice: safeUnitPrice,
+    subTotal,
+    discountValue: normalizedDiscountValue,
+    promotionType: promotionType || null,
+    discountAmountPerItem: normalizedDiscountAmountPerItem,
+    discountedSubTotal: normalizedDiscountedSubTotal,
+    lineDiscountAmount,
+    hasCartPromotion:
+      normalizedDiscountAmountPerItem > 0 ||
+      normalizedDiscountValue !== null ||
+      Boolean(promotionType),
+  };
+}
+
+function recalculateCartLine(item, overrides = {}) {
+  const nextItem = {
+    ...item,
+    ...overrides,
+  };
+
+  return {
+    ...nextItem,
+    ...buildCartPricingFields(nextItem, {
+      useProvidedDiscountedSubTotal: false,
+    }),
+  };
+}
+
 function normalizeServerItem(item) {
   const productStatus = item?.productStatus || null;
   const parsedStock =
@@ -28,12 +108,6 @@ function normalizeServerItem(item) {
       : Math.max(Number(item.availableStock) || 0, 0);
   const availableStock =
     parsedStock === 0 && productStatus === "Available" ? null : parsedStock;
-  const rawQuantity = Math.max(Number(item?.quantity) || 0, 0);
-  const quantity = rawQuantity;
-  const unitPrice = Number(item?.unitPrice) || 0;
-  const fallbackSubTotal = unitPrice * quantity;
-  const subTotal =
-    Number(item?.subTotal) > 0 ? Number(item.subTotal) : fallbackSubTotal;
 
   return {
     key: item?.id || item?.productId,
@@ -41,9 +115,14 @@ function normalizeServerItem(item) {
     productId: item?.productId || "",
     productName: item?.productName || "",
     productImage: item?.productImage || "",
-    quantity,
-    unitPrice,
-    subTotal,
+    ...buildCartPricingFields({
+      quantity: item?.quantity,
+      unitPrice: item?.unitPrice,
+      discountValue: item?.discountValue,
+      promotionType: item?.promotionType,
+      discountAmountPerItem: item?.discountAmountPerItem,
+      discountedSubTotal: item?.subTotal,
+    }),
     availableStock,
     productStatus,
   };
@@ -55,8 +134,6 @@ function normalizeServerItems(items) {
 }
 
 function normalizeLocalItem(item) {
-  const quantity = Math.max(Number(item?.quantity) || 1, 1);
-  const unitPrice = Number(item?.unitPrice ?? item?.price) || 0;
   const availableStock =
     item?.availableStock === null || item?.availableStock === undefined
       ? null
@@ -72,9 +149,15 @@ function normalizeLocalItem(item) {
     productId: item?.productId || item?.id || "",
     productName: item?.productName || item?.name || "",
     productImage: item?.productImage || item?.image || "",
-    quantity,
-    unitPrice,
-    subTotal: unitPrice * quantity,
+    ...buildCartPricingFields({
+      quantity: Math.max(Number(item?.quantity) || 1, 1),
+      unitPrice: item?.unitPrice ?? item?.price,
+      discountValue: item?.discountValue,
+      promotionType: item?.promotionType,
+      discountAmountPerItem: item?.discountAmountPerItem,
+      discountedSubTotal:
+        item?.discountedSubTotal ?? item?.subTotal,
+    }),
     availableStock,
     productStatus: item?.productStatus || "Available",
   };
@@ -161,11 +244,10 @@ function mergeLocalCartWithServer(localItems, serverItems) {
     }
 
     const nextQuantity = (existed.quantity || 0) + (localItem.quantity || 0);
-    mergedMap.set(localItem.productId, {
-      ...existed,
-      quantity: nextQuantity,
-      subTotal: (existed.unitPrice || 0) * nextQuantity,
-    });
+    mergedMap.set(
+      localItem.productId,
+      recalculateCartLine(existed, { quantity: nextQuantity }),
+    );
   }
 
   return Array.from(mergedMap.values());
@@ -291,11 +373,7 @@ export const addCartItem = createAsyncThunk(
         nextItems = currentItems.map((item) => {
           if (item.productId !== productId) return item;
           const nextQuantity = item.quantity + quantity;
-          return {
-            ...item,
-            quantity: nextQuantity,
-            subTotal: item.unitPrice * nextQuantity,
-          };
+          return recalculateCartLine(item, { quantity: nextQuantity });
         });
       } else {
         nextItems = [
@@ -348,11 +426,7 @@ export const changeCartItemQuantity = createAsyncThunk(
           ? currentItems.filter((item) => item.productId !== productId)
           : currentItems.map((item) => {
               if (item.productId !== productId) return item;
-              return {
-                ...item,
-                quantity: safeQuantity,
-                subTotal: item.unitPrice * safeQuantity,
-              };
+              return recalculateCartLine(item, { quantity: safeQuantity });
             });
 
       writeCartToStorage(nextItems);
