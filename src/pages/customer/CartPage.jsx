@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -16,7 +17,6 @@ import {
   selectCartItems,
   selectCartSelectedItemKeys,
   selectCartSelectedItemCount,
-  selectCartSelectedLineCount,
   selectCartSelectedSubtotal,
   toggleCartItemSelection,
   toggleSelectAllCartItems,
@@ -45,6 +45,61 @@ function getItemIssueLabel(item) {
   return "";
 }
 
+function getRawLineSubTotal(item) {
+  return (
+    Number(item?.subTotal) ||
+    (Number(item?.unitPrice) || 0) * (Number(item?.quantity) || 0)
+  );
+}
+
+function getCartLineSubTotal(item) {
+  const rawLineSubTotal = getRawLineSubTotal(item);
+
+  if (!item?.hasCartPromotion) {
+    return rawLineSubTotal;
+  }
+
+  const discountedLineSubTotal = Number(item?.discountedSubTotal);
+  return Number.isFinite(discountedLineSubTotal)
+    ? Math.max(discountedLineSubTotal, 0)
+    : rawLineSubTotal;
+}
+
+function getDiscountedUnitPrice(item) {
+  const unitPrice = Number(item?.unitPrice) || 0;
+  const discountAmountPerItem = Math.max(Number(item?.discountAmountPerItem) || 0, 0);
+  return Math.max(unitPrice - discountAmountPerItem, 0);
+}
+
+function getLineSavings(item) {
+  return Math.max(getRawLineSubTotal(item) - getCartLineSubTotal(item), 0);
+}
+
+function getPromotionBadgeLabel(item) {
+  if (!item?.hasCartPromotion) {
+    return "";
+  }
+
+  const discountValue = Number(item?.discountValue);
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    return "Ưu đãi tự động";
+  }
+
+  if (item?.promotionType === "PercentageDiscount") {
+    return `Giảm ${discountValue}%`;
+  }
+
+  if (item?.promotionType === "FixedPrice") {
+    return `Giá chỉ ${formatPrice(discountValue)}`;
+  }
+
+  if (item?.promotionType === "FixedDiscount") {
+    return `Giảm ${formatPrice(discountValue)}`;
+  }
+
+  return "Ưu đãi tự động";
+}
+
 export default function CartPage() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useAuth();
@@ -53,12 +108,34 @@ export default function CartPage() {
   const selectedItemKeys = useSelector(selectCartSelectedItemKeys);
   const itemCount = useSelector(selectCartItemCount);
   const selectedItemCount = useSelector(selectCartSelectedItemCount);
-  const selectedLineCount = useSelector(selectCartSelectedLineCount);
   const selectedSubtotal = useSelector(selectCartSelectedSubtotal);
   const invalidItems = useSelector(selectCartInvalidItems);
   const canCheckout = useSelector(selectCartCanCheckout);
   const allSelectableSelected = useSelector(selectCartAllSelectableSelected);
   const actionLoading = useSelector(selectCartActionLoading);
+
+  const selectedPricing = useMemo(() => {
+    const selectedKeySet = new Set(selectedItemKeys);
+
+    return items.reduce(
+      (totals, item) => {
+        if (!selectedKeySet.has(item.key)) {
+          return totals;
+        }
+
+        totals.displaySubtotal += getCartLineSubTotal(item);
+        totals.savings += getLineSavings(item);
+        return totals;
+      },
+      {
+        displaySubtotal: 0,
+        savings: 0,
+      },
+    );
+  }, [items, selectedItemKeys]);
+
+  const selectedDisplaySubtotal = selectedPricing.displaySubtotal;
+  const selectedSavings = selectedPricing.savings;
 
   const handleChangeQuantity = async (item, nextQuantity) => {
     const safeQuantity = Math.max(Number(nextQuantity) || 0, 0);
@@ -160,6 +237,13 @@ export default function CartPage() {
           {items.map((item) => {
             const issueLabel = getItemIssueLabel(item);
             const isSelectable = !issueLabel;
+            const rawLineSubTotal = getRawLineSubTotal(item);
+            const displayLineSubTotal = getCartLineSubTotal(item);
+            const discountedUnitPrice = getDiscountedUnitPrice(item);
+            const lineSavings = getLineSavings(item);
+            const hasVisibleDiscount =
+              Boolean(item?.hasCartPromotion) && displayLineSubTotal < rawLineSubTotal;
+            const promotionBadgeLabel = getPromotionBadgeLabel(item);
 
             return (
               <div
@@ -199,9 +283,30 @@ export default function CartPage() {
                       </h2>
                     </Link>
 
-                    <div className="mt-1 text-sm text-slate-500">
-                      Đơn giá: {formatPrice(item.unitPrice)}
-                    </div>
+                    {hasVisibleDiscount ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <span className="text-slate-400 line-through">
+                            {formatPrice(item.unitPrice)}
+                          </span>
+                          {promotionBadgeLabel ? (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                              {promotionBadgeLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-sm font-semibold text-red-600">
+                          Giá ưu đãi: {formatPrice(discountedUnitPrice)}
+                        </div>
+                        <div className="text-xs text-emerald-700">
+                          Tiết kiệm {formatPrice(lineSavings)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-sm text-slate-500">
+                        Đơn giá: {formatPrice(item.unitPrice)}
+                      </div>
+                    )}
 
                     {item.availableStock !== null && (
                       <div className="mt-1 text-xs text-slate-500">
@@ -246,8 +351,15 @@ export default function CartPage() {
                   </div>
 
                   <div className="flex justify-between gap-3 sm:flex-col sm:items-end">
-                    <div className="font-semibold text-red-600">
-                      {formatPrice(item.subTotal || item.unitPrice * item.quantity)}
+                    <div className="text-right">
+                      {hasVisibleDiscount ? (
+                        <div className="text-sm text-slate-400 line-through">
+                          {formatPrice(rawLineSubTotal)}
+                        </div>
+                      ) : null}
+                      <div className="font-semibold text-red-600">
+                        {formatPrice(displayLineSubTotal)}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -283,10 +395,24 @@ export default function CartPage() {
 
             <div className="flex justify-between text-base font-semibold text-slate-900">
               <span>Tạm tính</span>
-              <span className="text-red-600">
-                {formatPrice(selectedSubtotal)}
+              <span className="flex flex-col items-end">
+                {selectedSavings > 0 ? (
+                  <span className="text-xs font-medium text-slate-400 line-through">
+                    {formatPrice(selectedSubtotal)}
+                  </span>
+                ) : null}
+                <span className="text-red-600">
+                  {formatPrice(selectedDisplaySubtotal)}
+                </span>
               </span>
             </div>
+
+            {selectedSavings > 0 ? (
+              <div className="flex justify-between text-sm text-emerald-700">
+                <span>Tiết kiệm tự động</span>
+                <span>-{formatPrice(selectedSavings)}</span>
+              </div>
+            ) : null}
 
             {invalidItems.length > 0 && (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">

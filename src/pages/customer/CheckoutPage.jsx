@@ -30,7 +30,6 @@ const PaidType = {
 
 const PAYMENT_OPTION = {
   QR: "QR",
-  COD: "COD",
   INSTALLMENT: "INSTALLMENT",
 };
 
@@ -790,10 +789,6 @@ export default function CheckoutPage() {
       ...prev,
       deliveryType: nextType,
       pickupStoreId: nextType === DeliveryType.Shipping ? "" : prev.pickupStoreId,
-      paymentOption:
-        nextType === DeliveryType.Shipping && prev.paymentOption === PAYMENT_OPTION.COD
-          ? PAYMENT_OPTION.QR
-          : prev.paymentOption,
     }));
 
     setErrors((prev) => ({
@@ -1526,19 +1521,6 @@ export default function CheckoutPage() {
                   Thanh toán online qua mã QR
                 </span>
               </label>
-
-              {form.deliveryType === DeliveryType.PickUp && (
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3">
-                  <input
-                    type="radio"
-                    checked={form.paymentOption === PAYMENT_OPTION.COD}
-                    onChange={() => handlePaymentChange(PAYMENT_OPTION.COD)}
-                  />
-                  <span className="text-sm text-slate-800">
-                    Thanh toán khi nhận hàng tại cửa hàng
-                  </span>
-                </label>
-              )}
 
               <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3">
                 <input
