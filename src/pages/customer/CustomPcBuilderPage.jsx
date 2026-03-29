@@ -21,8 +21,8 @@ import {
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { apiService } from "../../config/axios";
+import useBuildPcCategories from "../../hooks/useBuildPcCategories";
 import useCartAccess from "../../hooks/useCartAccess";
-import useCustomPcCategories from "../../hooks/useCustomPcCategories";
 import { customPcService } from "../../services/customPcService";
 import { addCartItem } from "../../store/slices/cartSlice";
 import { CART_ACCESS_DENIED_MESSAGE } from "../../utils/cartAccess";
@@ -36,19 +36,50 @@ const CATEGORY_PRIORITY_RULES = [
   { key: "cpu", keywords: ["cpu", "vi xu ly", "bo xu ly", "processor"] },
   { key: "main", keywords: ["main", "mainboard", "motherboard", "bo mach chu"] },
   { key: "gpu", keywords: ["gpu", "vga", "card do hoa", "card man hinh", "graphics"] },
+  { key: "case", keywords: ["case", "vo may", "thung may"] },
   { key: "ram", keywords: ["ram", "bo nho"] },
   { key: "storage", keywords: ["ssd", "hdd", "nvme", "o cung", "storage"] },
   { key: "psu", keywords: ["psu", "nguon", "power supply", "nguon may"] },
-  { key: "case", keywords: ["case", "vo may", "thung may"] },
   { key: "cooler", keywords: ["tan nhiet", "cooler", "fan cpu", "heatsink"] },
+  { key: "monitor", keywords: ["monitor", "man hinh", "display"] },
+  { key: "keyboard", keywords: ["keyboard", "ban phim"] },
+  { key: "mouse", keywords: ["mouse", "chuot"] },
+  { key: "mousepad", keywords: ["mousepad", "lot chuot", "pad chuot"] },
+  { key: "headset", keywords: ["headset", "tai nghe"] },
+  { key: "speaker", keywords: ["speaker", "loa"] },
+  { key: "webcam", keywords: ["webcam", "camera"] },
+  { key: "cable", keywords: ["cable", "cap", "dau chuyen", "adapter"] },
+  { key: "chair", keywords: ["gaming chair", "ghe gaming", "chair"] },
 ];
 
 const normalizeText = (value) =>
   String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
     .toLowerCase()
     .trim();
+
+const CATEGORY_TYPE_PRIORITY = {
+  cpu: 0,
+  main: 1,
+  gpu: 2,
+  case: 3,
+  ram: 4,
+  storage: 5,
+  psu: 6,
+  cooler: 7,
+  monitor: 8,
+  keyboard: 9,
+  mouse: 10,
+  mousepad: 11,
+  headset: 12,
+  speaker: 13,
+  webcam: 14,
+  cable: 15,
+  chair: 16,
+};
 
 const money = (value) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(value || 0));
@@ -159,11 +190,20 @@ const getCategoryType = (value) => {
   if (text.includes("tan nhiet") || text.includes("cooler") || text.includes("heatsink") || text.includes("fan cpu")) return "cooler";
   if (text.includes("bo mach chu") || text.includes("mainboard") || text.includes("motherboard") || text === "main") return "main";
   if (text.includes("card do hoa") || text.includes("card man hinh") || text.includes("gpu") || text.includes("vga")) return "gpu";
+  if (text.includes("vo may") || text.includes("thung may") || text === "case") return "case";
   if (text.includes("ram") || text.includes("bo nho")) return "ram";
   if (text.includes("o cung") || text.includes("ssd") || text.includes("hdd") || text.includes("nvme") || text.includes("storage")) return "storage";
   if (text.includes("nguon may") || text.includes("power supply") || text.includes("psu") || text === "nguon") return "psu";
-  if (text.includes("vo may") || text.includes("thung may") || text === "case") return "case";
   if (text.includes("vi xu ly") || text.includes("bo xu ly") || text === "cpu" || text.includes("processor")) return "cpu";
+  if (text.includes("man hinh") || text.includes("monitor") || text.includes("display")) return "monitor";
+  if (text.includes("ban phim") || text.includes("keyboard")) return "keyboard";
+  if (text.includes("lot chuot") || text.includes("mousepad") || text.includes("pad chuot")) return "mousepad";
+  if (text.includes("chuot") || text.includes("mouse")) return "mouse";
+  if (text.includes("tai nghe") || text.includes("headset")) return "headset";
+  if (text.includes("loa") || text.includes("speaker")) return "speaker";
+  if (text.includes("webcam") || text.includes("camera")) return "webcam";
+  if (text.includes("cap") || text.includes("dau chuyen") || text.includes("cable") || text.includes("adapter")) return "cable";
+  if (text.includes("ghe gaming") || text.includes("gaming chair") || text.includes("chair")) return "chair";
 
   return null;
 };
@@ -181,6 +221,12 @@ const categoryMatch = (category, categoryName) => {
 
 const getCategoryPriority = (category) => {
   const categoryText = normalizeText(`${category?.name || ""} ${category?.description || ""}`);
+  const categoryType = getCategoryType(categoryText);
+
+  if (categoryType && categoryType in CATEGORY_TYPE_PRIORITY) {
+    return CATEGORY_TYPE_PRIORITY[categoryType];
+  }
+
   const index = CATEGORY_PRIORITY_RULES.findIndex(({ keywords }) => keywords.some((keyword) => categoryText.includes(keyword)));
   return index === -1 ? CATEGORY_PRIORITY_RULES.length : index;
 };
@@ -288,7 +334,13 @@ export default function CustomPcBuilderPage() {
     }
   }, [activeBuildId, builds]);
 
-  const { data: categories = [] } = useCustomPcCategories();
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    error: categoriesErrorDetail,
+    refetch: refetchCategories,
+  } = useBuildPcCategories();
 
   const orderedCategories = useMemo(() => sortCategories(categories), [categories]);
   const selectedCategory = useMemo(
@@ -536,6 +588,7 @@ export default function CustomPcBuilderPage() {
     clearCompatibilityResult();
     refetchBuilds();
     refetchActiveBuild();
+    refetchCategories();
     refetchProducts();
   };
 
@@ -717,11 +770,33 @@ export default function CustomPcBuilderPage() {
                 {activeBuild && <div className="text-sm text-sky-50">{countItems(activeBuild)} linh kiện • Cập nhật {dateText(activeBuild.updatedAt || activeBuild.createdAt)}</div>}
               </div>
 
-              {buildsLoading || activeBuildLoading ? (
+              {buildsLoading || activeBuildLoading || categoriesLoading ? (
                 <div className="space-y-3 p-4">
                   {Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="h-20 animate-pulse rounded-xl bg-slate-100" />
                   ))}
+                </div>
+              ) : categoriesError ? (
+                <div className="p-4">
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                    <p>{categoriesErrorDetail?.message || "Không thể tải danh mục build PC."}</p>
+                    <button
+                      type="button"
+                      onClick={() => refetchCategories()}
+                      className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-rose-300 px-4 font-semibold text-rose-700 hover:bg-rose-100"
+                    >
+                      <RefreshCw size={16} />
+                      Tải lại danh mục
+                    </button>
+                  </div>
+                </div>
+              ) : !orderedCategories.length ? (
+                <div className="p-4">
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                    <Cpu size={32} className="mx-auto text-slate-300" />
+                    <p className="mt-3 text-sm font-semibold text-slate-700">Chưa có danh mục build PC khả dụng</p>
+                    <p className="mt-1 text-sm text-slate-500">Danh sách category từ hệ thống hiện đang trống.</p>
+                  </div>
                 </div>
               ) : (
                 orderedCategories.map((category) => {
