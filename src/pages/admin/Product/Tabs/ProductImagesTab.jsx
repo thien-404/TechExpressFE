@@ -68,7 +68,7 @@ export default function ProductImagesTab({ product }) {
   const deleteImageMutation = useMutation({
     mutationFn: async (imageUrl) => {
       // 1. Delete from Firebase
-      await deleteProductImage({ imageUrl });
+      // await deleteProductImage({ imageUrl });
       // Note: Không cần xoá file trên Firebase để tránh lỗi không tìm thấy file(đang fix cu)
 
       // 2. Update product images in backend
