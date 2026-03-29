@@ -14,7 +14,6 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
     <GoogleOAuthProvider clientId={import.meta.env.TechExpress_GOOGLE_CLIENT_ID}>
       <AuthProvider>
         <Provider store={store}>
@@ -24,5 +23,4 @@ createRoot(document.getElementById("root")).render(
         </Provider>
       </AuthProvider>
     </GoogleOAuthProvider>
-  </StrictMode>
 );
