@@ -8,6 +8,7 @@ import TicketForm from "../../components/ticket/TicketForm";
 import TicketPaginationBar from "../../components/ticket/TicketPaginationBar";
 import TicketSummaryCard from "../../components/ticket/TicketSummaryCard";
 import TicketThreadView from "../../components/ticket/TicketThreadView";
+import CustomerSupportCenter from "../../components/ticket/CustomerSupportCenter";
 import { ticketService } from "../../services/ticketService";
 import { useAuth } from "../../store/authContext";
 import {
@@ -172,20 +173,7 @@ export default function SupportPage() {
   const replyLocked = isTicketReplyLocked(selectedTicket?.status);
 
   if (isAuthenticated) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Trung tâm hỗ trợ</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600">
-          Bạn đang đăng nhập. Để theo dõi ticket realtime và quản lý tập trung, vui lòng sử dụng trung tâm ticket trong tài khoản.
-        </p>
-        <Link
-          to="/account?tab=ticket"
-          className="mt-5 inline-flex h-11 items-center rounded-lg bg-[#0090D0] px-5 text-sm font-semibold text-white hover:bg-[#0077B0]"
-        >
-          Đi tới ticket của tôi
-        </Link>
-      </div>
-    );
+    return <CustomerSupportCenter />;
   }
 
   return (

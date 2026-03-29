@@ -257,14 +257,16 @@ export default function TicketForm({
           </select>
         </label>
 
-        <TextField
-          label="Tiêu đề"
-          value={form.title}
-          onChange={(value) => setField("title", value)}
-          placeholder="Ví dụ: Cần kiểm tra tình trạng đơn hàng"
-          error={errors.title}
-          disabled={submitting}
-        />
+        <div className="md:col-span-2">
+          <TextField
+            label="Tiêu đề"
+            value={form.title}
+            onChange={(value) => setField("title", value)}
+            placeholder="Ví dụ: Cần kiểm tra tình trạng đơn hàng"
+            error={errors.title}
+            disabled={submitting}
+          />
+        </div>
       </div>
 
       <div className="mt-4 space-y-4">
@@ -288,7 +290,7 @@ export default function TicketForm({
           rows={5}
         />
 
-        {(showCustomPcField || showOrderIdField || showOrderItemIdField) ? (
+        {showCustomPcField || showOrderIdField || showOrderItemIdField ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {showCustomPcField ? (
               <TextField

@@ -98,10 +98,7 @@ function matchEnumValue(value, allowedValues) {
   }
 
   const normalizedValue = normalizeEnumKey(stringValue);
-  return (
-    allowedValues.find((item) => normalizeEnumKey(item) === normalizedValue) ||
-    null
-  );
+  return allowedValues.find((item) => normalizeEnumKey(item) === normalizedValue) || null;
 }
 
 function toApiEnumValue(value, allowedValues) {
@@ -247,7 +244,9 @@ export function formatTicketRelativeTime(value) {
 
   const diffMs = Date.now() - parsedDate.getTime();
   if (diffMs < 60_000) return "Vừa xong";
-  if (diffMs < 3_600_000) return `${Math.max(1, Math.floor(diffMs / 60_000))} phút trước`;
+  if (diffMs < 3_600_000) {
+    return `${Math.max(1, Math.floor(diffMs / 60_000))} phút trước`;
+  }
   if (diffMs < 86_400_000) {
     return parsedDate.toLocaleTimeString("vi-VN", {
       hour: "2-digit",
@@ -281,12 +280,8 @@ export function normalizeTicketMessage(message) {
     ticketId: readValue(message, ["ticketId", "TicketId"], null),
     userId: readValue(message, ["userId", "UserId"], null),
     content: readValue(message, ["content", "Content"], ""),
-    isStaffMessage: Boolean(
-      readValue(message, ["isStaffMessage", "IsStaffMessage"], false)
-    ),
-    attachments: Array.isArray(attachments)
-      ? attachments.map(normalizeTicketAttachment)
-      : [],
+    isStaffMessage: Boolean(readValue(message, ["isStaffMessage", "IsStaffMessage"], false)),
+    attachments: Array.isArray(attachments) ? attachments.map(normalizeTicketAttachment) : [],
     sentAt: readValue(message, ["sentAt", "SentAt"], null),
   };
 }
@@ -296,11 +291,7 @@ export function normalizeTicketListItem(ticket) {
     id: readValue(ticket, ["id", "Id"], null),
     userId: readValue(ticket, ["userId", "UserId"], null),
     title: readValue(ticket, ["title", "Title"], ""),
-    description: readValue(
-      ticket,
-      ["description", "Description", "content", "Content"],
-      ""
-    ),
+    description: readValue(ticket, ["description", "Description", "content", "Content"], ""),
     status: normalizeTicketStatus(readValue(ticket, ["status", "Status"], "Open")) || "Open",
     createdAt: readValue(ticket, ["createdAt", "CreatedAt"], null),
     updatedAt: readValue(ticket, ["updatedAt", "UpdatedAt"], null),
@@ -320,22 +311,15 @@ export function normalizeTicket(ticket) {
     type: normalizeTicketType(readValue(ticket, ["type", "Type"], "Other")) || "Other",
     status: normalizeTicketStatus(readValue(ticket, ["status", "Status"], "Open")) || "Open",
     priority:
-      normalizeTicketPriority(readValue(ticket, ["priority", "Priority"], "Medium")) ||
-      "Medium",
+      normalizeTicketPriority(readValue(ticket, ["priority", "Priority"], "Medium")) || "Medium",
     customPCId: readValue(ticket, ["customPCId", "CustomPCId"], null),
     customPC: readValue(ticket, ["customPC", "CustomPC"], null),
     messages: Array.isArray(messages)
       ? messages
           .map(normalizeTicketMessage)
-          .sort((leftValue, rightValue) =>
-            compareDatesAsc(leftValue.sentAt, rightValue.sentAt)
-          )
+          .sort((leftValue, rightValue) => compareDatesAsc(leftValue.sentAt, rightValue.sentAt))
       : [],
-    completedByUserId: readValue(
-      ticket,
-      ["completedByUserId", "CompletedByUserId"],
-      null
-    ),
+    completedByUserId: readValue(ticket, ["completedByUserId", "CompletedByUserId"], null),
     completedByName: readValue(ticket, ["completedByName", "CompletedByName"], null),
     resolvedAt: readValue(ticket, ["resolvedAt", "ResolvedAt"], null),
     closedAt: readValue(ticket, ["closedAt", "ClosedAt"], null),
@@ -425,9 +409,7 @@ export function buildTicketCreatePayload(
   const customPCId = shouldShowCustomPcField(normalizedType)
     ? trimOrNull(values?.customPCId)
     : null;
-  const orderId = shouldShowOrderIdField(normalizedType)
-    ? trimOrNull(values?.orderId)
-    : null;
+  const orderId = shouldShowOrderIdField(normalizedType) ? trimOrNull(values?.orderId) : null;
   const orderItemId = shouldShowOrderItemIdField(normalizedType)
     ? parseNullableInteger(values?.orderItemId)
     : null;
@@ -484,12 +466,9 @@ export function buildTicketEntryPath({
   orderId = null,
   orderItemId = null,
 }) {
-  const pathname = isAuthenticated ? "/account" : "/support";
+  void isAuthenticated;
+  const pathname = "/support";
   const searchParams = new URLSearchParams();
-
-  if (isAuthenticated) {
-    searchParams.set("tab", "ticket");
-  }
 
   if (mode) searchParams.set("mode", mode);
   if (ticketId) searchParams.set("ticketId", ticketId);

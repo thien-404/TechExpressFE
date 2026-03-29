@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { apiService } from "../../../config/axios";
 import AccountSidebar from "../../../components/ui/AccountSideBar.jsx";
@@ -9,7 +9,6 @@ import { useAuth } from "../../../store/authContext.jsx";
 import AccountInfoTab from "./tabs/AccountInfoTab";
 import OrderDetailTab from "./tabs/OrderDetailTab";
 import OrderTab from "./tabs/OrderTab";
-import TicketTab from "./tabs/TicketTab";
 import VoucherTab from "./tabs/VoucherTab";
 
 const buildUpdatePayload = (source) => ({
@@ -32,9 +31,33 @@ const normalizeTab = (value) => {
   return "profile";
 };
 
+const TICKET_REDIRECT_QUERY_KEYS = [
+  "mode",
+  "ticketId",
+  "type",
+  "customPCId",
+  "orderId",
+  "orderItemId",
+];
+
+const buildTicketRedirectPath = (searchParams) => {
+  const nextSearchParams = new URLSearchParams();
+
+  TICKET_REDIRECT_QUERY_KEYS.forEach((key) => {
+    const value = searchParams.get(key);
+    if (value) {
+      nextSearchParams.set(key, value);
+    }
+  });
+
+  const search = nextSearchParams.toString();
+  return search ? `/support?${search}` : "/support";
+};
+
 export default function AccountPage() {
   const { token, logout } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = normalizeTab(searchParams.get("tab"));
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -87,6 +110,14 @@ export default function AccountPage() {
       avatarImage: user.avatarImage ?? "",
     });
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab !== "ticket") {
+      return;
+    }
+
+    navigate(buildTicketRedirectPath(searchParams), { replace: true });
+  }, [activeTab, navigate, searchParams]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload) => {
@@ -148,6 +179,13 @@ export default function AccountPage() {
 
   const handleTabChange = (tab) => {
     const nextTab = normalizeTab(tab);
+
+    if (nextTab === "ticket") {
+      setSelectedOrderId(null);
+      navigate("/support");
+      return;
+    }
+
     const nextParams = new URLSearchParams(searchParams);
 
     if (nextTab === "profile") {
@@ -290,7 +328,14 @@ export default function AccountPage() {
           />
         )}
 
-        {activeTab === "ticket" && <TicketTab />}
+        {activeTab === "ticket" && (
+          <section className="flex-1 min-w-0 w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Đang chuyển tới trung tâm hỗ trợ</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Hệ thống đang đưa bạn sang trang hỗ trợ chung để tiếp tục theo dõi ticket.
+            </p>
+          </section>
+        )}
 
         {activeTab === "voucher" && <VoucherTab />}
       </div>

@@ -13,7 +13,7 @@ function AttachmentCard({ attachment }) {
         href={attachment.fileUrl}
         target="_blank"
         rel="noreferrer"
-        className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+        className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
       >
         <img
           src={attachment.fileUrl}
@@ -25,15 +25,14 @@ function AttachmentCard({ attachment }) {
   }
 
   const previewIcon = fileType === "pdf" ? pdfIcon : fileType === "video" ? videoIcon : fileIcon;
-  const label =
-    fileType === "pdf" ? "Tệp PDF" : fileType === "video" ? "Video" : "Tệp đính kèm";
+  const label = fileType === "pdf" ? "Tệp PDF" : fileType === "video" ? "Video" : "Tệp đính kèm";
 
   return (
     <a
       href={attachment.fileUrl}
       target="_blank"
       rel="noreferrer"
-      className="flex w-28 flex-col items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:border-[#0090D0] hover:bg-[#0090D0]/5"
+      className="flex w-28 flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-center transition hover:border-[#0090D0] hover:bg-[#0090D0]/5"
     >
       <img src={previewIcon} alt={label} className="h-10 w-10 object-contain" />
       <span className="line-clamp-2 text-xs font-medium text-slate-700">

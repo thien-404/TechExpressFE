@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef } from "react";
 import { Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { fileIcon, pdfIcon, videoIcon } from "../../assets/icons";
+import { getFileType } from "../../utils/fileType";
 import {
   MAX_TICKET_ATTACHMENTS,
   TICKET_ATTACHMENT_ACCEPT,
   validateTicketAttachmentFile,
 } from "../../utils/ticketUpload";
-import { fileIcon, pdfIcon, videoIcon } from "../../assets/icons";
-import { getFileType } from "../../utils/fileType";
 
 function PreviewCard({ entry, onRemove, disabled }) {
   if (entry.type === "image" || entry.type === "gif") {
@@ -17,7 +17,7 @@ function PreviewCard({ entry, onRemove, disabled }) {
         <img
           src={entry.previewUrl}
           alt={entry.file.name}
-          className="h-20 w-20 rounded-xl border border-slate-200 object-cover"
+          className="h-20 w-20 rounded-2xl border border-slate-200 object-cover"
         />
         <button
           type="button"
@@ -35,7 +35,7 @@ function PreviewCard({ entry, onRemove, disabled }) {
     entry.type === "pdf" ? pdfIcon : entry.type === "video" ? videoIcon : fileIcon;
 
   return (
-    <div className="group relative flex w-32 flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="group relative flex w-32 flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3">
       <img src={previewIcon} alt={entry.file.name} className="h-10 w-10 object-contain" />
       <div className="line-clamp-2 text-xs font-medium text-slate-700">{entry.file.name}</div>
       <button
@@ -50,11 +50,7 @@ function PreviewCard({ entry, onRemove, disabled }) {
   );
 }
 
-export default function TicketAttachmentPicker({
-  files,
-  onChange,
-  disabled = false,
-}) {
+export default function TicketAttachmentPicker({ files, onChange, disabled = false }) {
   const inputRef = useRef(null);
 
   const previewEntries = useMemo(
@@ -100,7 +96,7 @@ export default function TicketAttachmentPicker({
 
     const acceptedFiles = incomingFiles.slice(0, remainingSlots);
     if (incomingFiles.length > remainingSlots) {
-      toast.warning(`Chỉ thêm được ${remainingSlots} tệp nữa.`);
+      toast.warning(`Bạn chỉ có thể thêm ${remainingSlots} tệp nữa.`);
     }
 
     for (const file of acceptedFiles) {
@@ -128,13 +124,13 @@ export default function TicketAttachmentPicker({
           type="button"
           disabled={disabled || (files?.length || 0) >= MAX_TICKET_ATTACHMENTS}
           onClick={() => inputRef.current?.click()}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Paperclip size={16} />
           Đính kèm tệp
         </button>
 
-        <span className="text-xs text-slate-500">
+        <span className="text-xs leading-5 text-slate-500">
           Tối đa {MAX_TICKET_ATTACHMENTS} tệp, mỗi tệp không quá 10MB.
         </span>
       </div>

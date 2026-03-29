@@ -14,7 +14,7 @@ export default function TicketPaginationBar({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm md:flex-row md:items-center md:justify-between">
       <div className="text-sm text-slate-600">
-        Hiển thị {from}-{to} trên tổng số {totalCount} ticket
+        Hiển thị {from}-{to} trong tổng số {totalCount} ticket
       </div>
 
       <div className="flex items-center gap-2">
@@ -22,7 +22,7 @@ export default function TicketPaginationBar({
           type="button"
           disabled={!canGoPrevious}
           onClick={() => onPageChange?.(pageNumber - 1)}
-          className="inline-flex h-10 items-center rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 items-center rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Trang trước
         </button>
@@ -35,7 +35,7 @@ export default function TicketPaginationBar({
           type="button"
           disabled={!canGoNext}
           onClick={() => onPageChange?.(pageNumber + 1)}
-          className="inline-flex h-10 items-center rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white transition hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="inline-flex h-10 items-center rounded-xl bg-[#0090D0] px-4 text-sm font-semibold text-white transition hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           Trang sau
         </button>

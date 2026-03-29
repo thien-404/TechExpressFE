@@ -45,45 +45,28 @@ export default function TicketMessageTimeline({
   return (
     <div className="space-y-4">
       {safeMessages.map((message) => {
-        const { isOwn, authorLabel } = getMessageMeta(
-          message,
-          viewerKind,
-          currentUserId
-        );
+        const { isOwn, authorLabel } = getMessageMeta(message, viewerKind, currentUserId);
 
         return (
-          <div
-            key={message.id}
-            className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-          >
+          <div key={message.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
             <div
-              className={`max-w-full space-y-2 rounded-2xl border px-4 py-3 shadow-sm md:max-w-[80%] ${
+              className={`max-w-full space-y-2 rounded-3xl border px-4 py-3 shadow-sm md:max-w-[80%] ${
                 isOwn
                   ? "border-[#0090D0] bg-[#0090D0] text-white"
                   : "border-slate-200 bg-white text-slate-800"
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span
-                  className={`text-xs font-semibold ${
-                    isOwn ? "text-white/90" : "text-slate-500"
-                  }`}
-                >
+                <span className={`text-xs font-semibold ${isOwn ? "text-white/90" : "text-slate-500"}`}>
                   {authorLabel}
                 </span>
-                <span
-                  className={`text-xs ${
-                    isOwn ? "text-white/80" : "text-slate-400"
-                  }`}
-                >
+                <span className={`text-xs ${isOwn ? "text-white/80" : "text-slate-400"}`}>
                   {formatTicketDateTime(message.sentAt)}
                 </span>
               </div>
 
               {message.content ? (
-                <div className="whitespace-pre-wrap text-sm leading-6">
-                  {message.content}
-                </div>
+                <div className="whitespace-pre-wrap text-sm leading-6">{message.content}</div>
               ) : null}
 
               <TicketAttachmentGallery attachments={message.attachments} />

@@ -67,10 +67,7 @@ export function validateTicketAttachmentFile(file) {
   return { valid: true };
 }
 
-export async function uploadTicketAttachments({
-  files,
-  ownerKey = "khach",
-}) {
+export async function uploadTicketAttachments({ files, ownerKey = "khach" }) {
   const normalizedFiles = Array.isArray(files) ? files.filter(Boolean) : [];
   if (!normalizedFiles.length) {
     return [];
