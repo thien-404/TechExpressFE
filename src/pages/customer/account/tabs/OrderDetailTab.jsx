@@ -5,7 +5,10 @@ import { toast } from "sonner";
 
 import { orderService } from "../../../../services/orderService";
 import { useAuth } from "../../../../store/authContext.jsx";
-import { canViewerCompleteOrder } from "../../../../utils/orderManagement";
+import {
+  canViewerCompleteOrder,
+  isTerminalOrderStatus,
+} from "../../../../utils/orderManagement";
 import {
   buildCheckoutPaymentUrls,
   storePendingPaymentSessionId,
@@ -48,7 +51,6 @@ const ORDER_STATUS_TEXT = {
   Refunded: "Đã hoàn tiền",
 };
 
-const TERMINAL_ORDER_STATUSES = new Set(["canceled", "cancelled", "refunded"]);
 const PAID_PAYMENT_STATUSES = new Set(["success", "succeeded", "paid", "completed"]);
 const INSTALLMENT_PAID_STATUSES = new Set(["paid", "completed", "success", "succeeded"]);
 
@@ -103,52 +105,164 @@ function hasSuccessfulPayment(payments = []) {
   return payments.some((payment) => PAID_PAYMENT_STATUSES.has(normalizeKey(payment?.status)));
 }
 
-function isInstallmentPaid(installment) {
-  const status = normalizeKey(installment?.status);
-  if (INSTALLMENT_PAID_STATUSES.has(status)) return true;
-  if (Number(installment?.remainingAmount) === 0 && installment?.remainingAmount != null) return true;
-  return false;
-}
-
-function isInstallmentInPaymentWindow(installment) {
-  if (!installment || isInstallmentPaid(installment)) return false;
-
-  const now = Date.now();
-  const dueRaw =
+function getInstallmentDueDate(installment) {
+  return (
     installment?.dueDate ??
     installment?.paymentDueDate ??
     installment?.dueAt ??
     installment?.dueOn ??
-    null;
-
-  if (!dueRaw) return true;
-
-  const due = new Date(dueRaw).getTime();
-  if (Number.isNaN(due)) return true;
-
-  return now <= due;
+    null
+  );
 }
 
-function canShowPayButton(orderDetail) {
-  if (!orderDetail) return false;
+function getDateTimestamp(value) {
+  if (!value) return Number.POSITIVE_INFINITY;
 
-  const orderStatus = normalizeKey(orderDetail.status);
-  const orderClosed = TERMINAL_ORDER_STATUSES.has(orderStatus);
-
-  const successPaid = hasSuccessfulPayment(orderDetail.payments || []);
-  const payableByOrder = !orderClosed && !successPaid;
-
-  const installments = orderDetail.installments || [];
-  const payableInstallment = installments.some(isInstallmentInPaymentWindow);
-
-  return payableByOrder || payableInstallment;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
 }
 
-function getPayableInstallmentId(orderDetail) {
-  if (!orderDetail) return null;
-  const installments = orderDetail.installments || [];
-  const payableInstallment = installments.find(isInstallmentInPaymentWindow);
-  return payableInstallment?.id || null;
+function compareInstallments(left, right) {
+  const leftPeriod = Number(left?.period);
+  const rightPeriod = Number(right?.period);
+  const hasLeftPeriod = Number.isFinite(leftPeriod);
+  const hasRightPeriod = Number.isFinite(rightPeriod);
+
+  if (hasLeftPeriod && hasRightPeriod && leftPeriod !== rightPeriod) {
+    return leftPeriod - rightPeriod;
+  }
+
+  if (hasLeftPeriod !== hasRightPeriod) {
+    return hasLeftPeriod ? -1 : 1;
+  }
+
+  return getDateTimestamp(getInstallmentDueDate(left)) - getDateTimestamp(getInstallmentDueDate(right));
+}
+
+function getSuccessfulInstallmentAmounts(payments = []) {
+  return payments.reduce((amountsByInstallment, payment) => {
+    if (!PAID_PAYMENT_STATUSES.has(normalizeKey(payment?.status))) {
+      return amountsByInstallment;
+    }
+
+    const installmentId = payment?.installmentId;
+    if (!installmentId) {
+      return amountsByInstallment;
+    }
+
+    const key = String(installmentId);
+    const currentAmount = amountsByInstallment.get(key) || 0;
+    amountsByInstallment.set(key, currentAmount + Number(payment?.amount || 0));
+    return amountsByInstallment;
+  }, new Map());
+}
+
+function isInstallmentPaid(installment, successfulPaidAmount = 0) {
+  const status = normalizeKey(installment?.status);
+  if (INSTALLMENT_PAID_STATUSES.has(status)) return true;
+  if (Number(installment?.remainingAmount) === 0 && installment?.remainingAmount != null) return true;
+
+  const installmentAmount = Number(installment?.amount ?? installment?.totalAmount);
+  if (Number.isFinite(installmentAmount) && installmentAmount > 0 && successfulPaidAmount >= installmentAmount) {
+    return true;
+  }
+
+  return false;
+}
+
+function getPayAction(orderDetail) {
+  if (!orderDetail?.id || isTerminalOrderStatus(orderDetail?.status)) {
+    return {
+      canPay: false,
+      targetType: null,
+      targetId: null,
+      noticeTone: null,
+      noticeMessage: "",
+    };
+  }
+
+  const payments = Array.isArray(orderDetail?.payments) ? orderDetail.payments : [];
+  const installments = Array.isArray(orderDetail?.installments)
+    ? [...orderDetail.installments].sort(compareInstallments)
+    : [];
+  const isInstallmentOrder =
+    normalizeKey(orderDetail?.paidType) === "installment" || installments.length > 0;
+
+  if (!isInstallmentOrder) {
+    if (hasSuccessfulPayment(payments)) {
+      return {
+        canPay: false,
+        targetType: null,
+        targetId: null,
+        noticeTone: null,
+        noticeMessage: "",
+      };
+    }
+
+    return {
+      canPay: true,
+      targetType: "order",
+      targetId: orderDetail.id,
+      noticeTone: null,
+      noticeMessage: "",
+    };
+  }
+
+  const successfulAmountsByInstallment = getSuccessfulInstallmentAmounts(payments);
+
+  for (const installment of installments) {
+    const installmentId = installment?.id ? String(installment.id) : "";
+    const successfulPaidAmount = installmentId
+      ? successfulAmountsByInstallment.get(installmentId) || 0
+      : 0;
+
+    if (isInstallmentPaid(installment, successfulPaidAmount)) {
+      continue;
+    }
+
+    if (!installment?.id) {
+      return {
+        canPay: false,
+        targetType: null,
+        targetId: null,
+        noticeTone: "warning",
+        noticeMessage: "Không xác định được kỳ trả góp phù hợp để thanh toán online.",
+      };
+    }
+
+    if (successfulPaidAmount > 0) {
+      return {
+        canPay: false,
+        targetType: null,
+        targetId: null,
+        noticeTone: "warning",
+        noticeMessage:
+          "Kỳ trả góp hiện tại đã có thanh toán một phần. Hệ thống chưa thể tạo link thanh toán online an toàn cho số tiền còn lại.",
+      };
+    }
+
+    const dueDate = getInstallmentDueDate(installment);
+    const dueTimestamp = getDateTimestamp(dueDate);
+    const isOverdue = Number.isFinite(dueTimestamp) && Date.now() > dueTimestamp;
+
+    return {
+      canPay: true,
+      targetType: "installment",
+      targetId: installment.id,
+      noticeTone: isOverdue ? "warning" : null,
+      noticeMessage: isOverdue
+        ? "Kỳ trả góp hiện tại đã quá hạn. Bạn vẫn có thể tiếp tục thanh toán online cho kỳ này."
+        : "",
+    };
+  }
+
+  return {
+    canPay: false,
+    targetType: null,
+    targetId: null,
+    noticeTone: null,
+    noticeMessage: "",
+  };
 }
 
 function hasOrderDiscount(orderDetail) {
@@ -210,7 +324,8 @@ export default function OrderDetailTab({ orderId, onBack }) {
     },
   });
 
-  const showPayButton = useMemo(() => canShowPayButton(order), [order]);
+  const payAction = useMemo(() => getPayAction(order), [order]);
+  const showPayButton = payAction.canPay;
   const canCompleteOrder = useMemo(
     () =>
       canViewerCompleteOrder(order, {
@@ -229,24 +344,23 @@ export default function OrderDetailTab({ orderId, onBack }) {
         throw new Error("Không tìm thấy mã đơn để thanh toán");
       }
 
-      const payableInstallmentId = getPayableInstallmentId(order);
-      const isInstallmentOrder =
-        normalizeKey(order?.paidType) === "installment" || (order?.installments || []).length > 0;
+      if (!payAction.canPay || !payAction.targetType || !payAction.targetId) {
+        throw new Error(payAction.noticeMessage || "Đơn hàng hiện chưa thể thanh toán online");
+      }
+
       const { returnUrl, cancelUrl } = buildCheckoutPaymentUrls(
         window.location.origin
       );
       let response;
 
-      if (payableInstallmentId) {
-        response = await orderService.initInstallmentOnlinePayment(payableInstallmentId, {
+      if (payAction.targetType === "installment") {
+        response = await orderService.initInstallmentOnlinePayment(payAction.targetId, {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
           cancelUrl,
         });
-      } else if (isInstallmentOrder) {
-        throw new Error("Không tìm thấy kỳ trả góp nào đang trong thời hạn thanh toán");
       } else {
-        response = await orderService.initOnlinePayment(order.id, {
+        response = await orderService.initOnlinePayment(payAction.targetId, {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
           cancelUrl,
@@ -342,55 +456,69 @@ export default function OrderDetailTab({ orderId, onBack }) {
           Quay lại danh sách
         </button>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {order?.id && (
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  buildTicketEntryPath({
-                    isAuthenticated: true,
-                    type: "OrderIssue",
-                    orderId: order.id,
-                  })
-                )
-              }
-              className="h-9 rounded-lg border border-[#0090D0] px-4 text-sm font-semibold text-[#0090D0] hover:bg-[#0090D0]/5"
-            >
-              Gửi ticket đơn hàng
-            </button>
-          )}
-          {canCompleteOrder && (
-            <button
-              type="button"
-              onClick={() => completeMutation.mutate()}
-              disabled={completeMutation.isPending}
-              className="h-9 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {completeMutation.isPending ? "Đang hoàn tất..." : "Hoàn tất đơn hàng"}
-            </button>
-          )}
+        <div className="flex max-w-full flex-col gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {order?.id && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    buildTicketEntryPath({
+                      isAuthenticated: true,
+                      type: "OrderIssue",
+                      orderId: order.id,
+                    })
+                  )
+                }
+                className="h-9 rounded-lg border border-[#0090D0] px-4 text-sm font-semibold text-[#0090D0] hover:bg-[#0090D0]/5"
+              >
+                Gửi ticket đơn hàng
+              </button>
+            )}
+            {canCompleteOrder && (
+              <button
+                type="button"
+                onClick={() => completeMutation.mutate()}
+                disabled={completeMutation.isPending}
+                className="h-9 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {completeMutation.isPending ? "Đang hoàn tất..." : "Hoàn tất đơn hàng"}
+              </button>
+            )}
 
-          {canCancelOrder && (
-            <button
-              type="button"
-              onClick={handleCancelOrder}
-              disabled={cancelMutation.isPending}
-              className="h-9 rounded-lg bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {cancelMutation.isPending ? "Đang hủy..." : "Hủy đơn hàng"}
-            </button>
-          )}
+            {canCancelOrder && (
+              <button
+                type="button"
+                onClick={handleCancelOrder}
+                disabled={cancelMutation.isPending}
+                className="h-9 rounded-lg bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancelMutation.isPending ? "Đang hủy..." : "Hủy đơn hàng"}
+              </button>
+            )}
 
-          {showPayButton && (
-            <button
-              type="button"
-              onClick={() => payMutation.mutate()}
-              disabled={payMutation.isPending}
-              className="h-9 rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
+            {showPayButton && (
+              <button
+                type="button"
+                onClick={() => payMutation.mutate()}
+                disabled={payMutation.isPending}
+                className="h-9 rounded-lg bg-[#0090D0] px-4 text-sm font-semibold text-white hover:bg-[#0077B0] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {payMutation.isPending ? "Đang khởi tạo..." : "Thanh toán ngay"}
+              </button>
+            )}
+          </div>
+
+          {payAction.noticeMessage && (
+            <p
+              className={`max-w-md rounded-lg border px-3 py-2 text-xs ${
+                payAction.noticeTone === "warning"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+              }`}
             >
-              {payMutation.isPending ? "Đang khởi tạo..." : "Thanh toán ngay"}
-            </button>
+              {payAction.noticeMessage}
+            </p>
           )}
         </div>
       </div>

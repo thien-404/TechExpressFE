@@ -135,6 +135,10 @@ export function normalizeKey(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+export function isTerminalOrderStatus(status) {
+  return TERMINAL_ORDER_STATUSES.has(normalizeKey(status));
+}
+
 export function normalizeViewer(viewerOrRole) {
   if (typeof viewerOrRole === "string") {
     return {
