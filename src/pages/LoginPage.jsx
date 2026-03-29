@@ -87,6 +87,7 @@ export default function LoginPage() {
     ? `${fromState.pathname || ""}${fromState.search || ""}${fromState.hash || ""}`
     : "";
   const requestedPath = searchParams.get("redirect") || requestedPathFromState || "";
+  const googleCallbackUri = `${window.location.origin}/google-callback`;
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({
@@ -140,8 +141,39 @@ export default function LoginPage() {
     }
   };
 
-  const onGoogleLogin = () => {
-    toast.info("Google login chưa được tích hợp.");
+  const onGoogleLogin = async () => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      const response = await apiService.get("/Auth/google-login", {
+        params: {
+          redirectUri: googleCallbackUri,
+        },
+      });
+
+      const payload = response?.data;
+      const statusCode = payload?.statusCode;
+      const loginUrl =
+        typeof payload?.value === "string"
+          ? payload.value
+          : typeof payload === "string"
+            ? payload
+            : "";
+
+      if (statusCode !== 200 || !loginUrl) {
+        toast.error("Không lấy được URL đăng nhập Google.");
+        return;
+      }
+
+      window.location.assign(loginUrl);
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Không thể khởi tạo đăng nhập Google."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

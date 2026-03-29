@@ -7,6 +7,7 @@ import AdminLayout from "../layouts/AdminLayout";
 import StaffLayout from "../layouts/StaffLayout.jsx";
 
 import LoginPage from "../pages/LoginPage.jsx";
+import GoogleCallbackPage from "../pages/GoogleCallbackPage.jsx";
 import RegisterPage from "../pages/RegisterPage.jsx";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "../pages/ResetPasswordPage.jsx";
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "categories", element: <CategoriesPage /> },
       { path: "login", element: <LoginPage /> },
+      { path: "google-callback", element: <GoogleCallbackPage /> },
       { path: "register", element: <RegisterPage /> },
       { path: "forgot-password", element: <ForgotPasswordPage /> },
       { path: "reset-password", element: <ResetPasswordPage /> },
