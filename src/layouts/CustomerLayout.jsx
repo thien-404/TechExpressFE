@@ -10,6 +10,12 @@ import useRouteScrollReset from '../hooks/useRouteScrollReset.js'
 export default function CustomerLayout() {
   const location = useLocation()
   const [isCategorySidebarOpen, setIsCategorySidebarOpen] = useState(false)
+  const isHomePage = location.pathname === '/'
+  const isCategoriesPage = location.pathname === '/categories'
+  const isProductPage =
+    location.pathname === '/products' || location.pathname.startsWith('/products/')
+  const showCategorySidebar =
+    isHomePage || isCategoriesPage || isProductPage
 
   useRouteScrollReset()
 
@@ -25,15 +31,20 @@ export default function CustomerLayout() {
       <CartBootstrap />
 
       {/* Header */}
-      <Header onToggleCategorySidebar={handleOpenCategorySidebar} />
+      <Header
+        onToggleCategorySidebar={handleOpenCategorySidebar}
+        showCategorySidebarToggle={showCategorySidebar}
+      />
 
       {/* Main content */}
       <main className="flex-1 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
-          <CategorySidebar
-            isMobileOpen={isCategorySidebarOpen}
-            onCloseMobile={handleCloseCategorySidebar}
-          />
+          {showCategorySidebar ? (
+            <CategorySidebar
+              isMobileOpen={isCategorySidebarOpen}
+              onCloseMobile={handleCloseCategorySidebar}
+            />
+          ) : null}
           <div className="flex-1 min-w-0">
             <Outlet />
           </div>

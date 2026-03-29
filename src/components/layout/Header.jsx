@@ -62,7 +62,10 @@ const writeSearchHistory = (history) => {
 
 const normalizeRole = (role) => String(role || "").trim().toLowerCase();
 
-export default function Header({ onToggleCategorySidebar }) {
+export default function Header({
+  onToggleCategorySidebar,
+  showCategorySidebarToggle = false,
+}) {
   const { user, loading, canUseCart } = useCartAccess();
   const itemCount = useSelector(selectCartItemCount);
   const navigate = useNavigate();
@@ -151,14 +154,16 @@ export default function Header({ onToggleCategorySidebar }) {
         <div className="px-4 py-5 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button
-                className="text-white"
-                type="button"
-                onClick={onToggleCategorySidebar}
-                aria-label="Toggle category sidebar"
-              >
-                <Menu size={22} />
-              </button>
+              {showCategorySidebarToggle ? (
+                <button
+                  className="text-white"
+                  type="button"
+                  onClick={onToggleCategorySidebar}
+                  aria-label="Toggle category sidebar"
+                >
+                  <Menu size={22} />
+                </button>
+              ) : null}
 
               <NavLink to="/" className="text-lg font-bold text-white">
                 Tech<span className="text-yellow-400">Express</span>
