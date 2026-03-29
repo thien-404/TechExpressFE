@@ -8,6 +8,16 @@ import { selectCartItemCount } from "../../store/slices/cartSlice";
 
 const SEARCH_HISTORY_STORAGE_KEY = "tech-express-search-history";
 const MAX_SEARCH_HISTORY_ITEMS = 6;
+const MANAGEMENT_PORTAL_LINKS = {
+  admin: {
+    to: "/admin",
+    label: "Trang quản trị",
+  },
+  staff: {
+    to: "/staff",
+    label: "Trang nhân viên",
+  },
+};
 
 const HEADER_COPY = {
   searchRequired: "Vui lòng nhập từ khóa tìm kiếm",
@@ -50,6 +60,8 @@ const writeSearchHistory = (history) => {
   window.localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(history));
 };
 
+const normalizeRole = (role) => String(role || "").trim().toLowerCase();
+
 export default function Header({ onToggleCategorySidebar }) {
   const { user, loading, canUseCart } = useCartAccess();
   const itemCount = useSelector(selectCartItemCount);
@@ -57,6 +69,9 @@ export default function Header({ onToggleCategorySidebar }) {
   const [keyword, setKeyword] = useState("");
   const [searchHistory, setSearchHistory] = useState([]);
   const showCartEntryPoints = !loading && canUseCart;
+  const managementPortal = !loading
+    ? MANAGEMENT_PORTAL_LINKS[normalizeRole(user?.role)] ?? null
+    : null;
 
   useEffect(() => {
     setSearchHistory(readSearchHistory());
@@ -186,12 +201,23 @@ export default function Header({ onToggleCategorySidebar }) {
 
           {renderSearchHistory("text-[11px] text-white/80 truncate")}
 
-          <NavLink
-            to="/custom-pc-builder"
-            className="inline-flex h-9 items-center justify-center rounded-lg bg-white/15 px-3 text-sm font-medium text-white hover:bg-white/20"
-          >
-            Custom PC Builder
-          </NavLink>
+          <div className="flex flex-wrap gap-2">
+            {managementPortal ? (
+              <NavLink
+                to={managementPortal.to}
+                className="inline-flex h-9 items-center justify-center rounded-lg bg-yellow-400 px-3 text-sm font-semibold text-slate-900 transition-colors hover:bg-yellow-500"
+              >
+                {managementPortal.label}
+              </NavLink>
+            ) : null}
+
+            <NavLink
+              to="/custom-pc-builder"
+              className="inline-flex h-9 items-center justify-center rounded-lg bg-white/15 px-3 text-sm font-medium text-white hover:bg-white/20"
+            >
+              Custom PC Builder
+            </NavLink>
+          </div>
         </div>
       </div>
 
@@ -237,6 +263,15 @@ export default function Header({ onToggleCategorySidebar }) {
               <div className="font-medium">{user?.email || HEADER_COPY.login}</div>
             </div>
           </NavLink>
+
+          {managementPortal ? (
+            <NavLink
+              to={managementPortal.to}
+              className="flex items-center justify-center rounded-md bg-yellow-400 px-3 py-2 text-sm font-semibold text-slate-900 transition-colors hover:bg-yellow-500"
+            >
+              {managementPortal.label}
+            </NavLink>
+          ) : null}
 
           {showCartEntryPoints ? (
             <NavLink
