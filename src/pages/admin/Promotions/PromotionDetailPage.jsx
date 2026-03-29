@@ -5,6 +5,7 @@ import {
   FiArrowLeft,
   FiGift,
   FiInfo,
+  FiLayers,
   FiPackage,
   FiPower,
   FiTrash2,
@@ -24,6 +25,8 @@ import {
   getPromotionTypeLabel,
   getRequiredProductLogicLabel,
 } from "./promotionHelpers";
+
+const DEFAULT_TAB = "info";
 
 function StatusBadge({ promotion }) {
   const status = getPromotionStatus(promotion);
@@ -48,15 +51,10 @@ function InfoRow({ label, value }) {
   );
 }
 
-function Tabs({ active, onChange }) {
-  const tabs = [
-    { key: "info", label: "Thông tin chung", icon: FiInfo },
-    { key: "products", label: "Sản phẩm áp dụng", icon: FiPackage },
-  ];
-
+function Tabs({ active, onChange, tabs }) {
   return (
     <div className="border-b border-slate-200">
-      <div className="flex gap-6 px-6">
+      <div className="flex flex-wrap gap-6 px-6">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = active === tab.key;
@@ -85,21 +83,141 @@ function Tabs({ active, onChange }) {
   );
 }
 
+function getProductThumbnail(product) {
+  if (Array.isArray(product?.thumbnailUrl) && product.thumbnailUrl.length > 0) {
+    return product.thumbnailUrl[0];
+  }
+
+  return product?.firstImageUrl || "";
+}
+
+function RelatedProductCell({ product, productId }) {
+  const thumbnailUrl = getProductThumbnail(product);
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+        {thumbnailUrl ? (
+          <img
+            src={thumbnailUrl}
+            alt={product?.name || productId}
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <FiPackage size={20} className="text-slate-300" />
+        )}
+      </div>
+
+      <div className="min-w-0">
+        <div className="truncate font-medium text-slate-800">
+          {product?.name || "Không tải được thông tin sản phẩm"}
+        </div>
+        <div className="mt-1 text-xs text-slate-500">
+          {product?.sku || `ID: ${productId}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RelatedProductsTable({
+  rows,
+  productMap,
+  loading,
+  emptyText,
+  quantityColumns,
+  onProductClick,
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
+        Đang tải thông tin sản phẩm...
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
+        {emptyText}
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <table className="w-full text-sm">
+        <thead className="border-b border-slate-200 bg-slate-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+              Sản phẩm
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+              SKU
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+              Giá
+            </th>
+            {quantityColumns.map((column) => (
+              <th
+                key={column.key}
+                className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600"
+              >
+                {column.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((row) => {
+            const product = productMap[String(row.productId)] || null;
+            const canNavigate = Boolean(product?.id);
+
+            return (
+              <tr
+                key={`${row.id}-${row.productId}`}
+                className={canNavigate ? "cursor-pointer hover:bg-slate-50" : ""}
+                onClick={() => {
+                  if (canNavigate) {
+                    onProductClick(product.id);
+                  }
+                }}
+              >
+                <td className="px-4 py-3">
+                  <RelatedProductCell product={product} productId={row.productId} />
+                </td>
+                <td className="px-4 py-3 text-slate-700">
+                  {product?.sku || "-"}
+                </td>
+                <td className="px-4 py-3 font-medium text-slate-700">
+                  {product ? formatCurrency(product.price) : "-"}
+                </td>
+                {quantityColumns.map((column) => (
+                  <td key={column.key} className="px-4 py-3 text-slate-700">
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function PromotionDetailPage() {
   const { promotionId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const tabFromUrl = searchParams.get("tab") || "info";
+  const tabFromUrl = searchParams.get("tab") || DEFAULT_TAB;
   const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [productQuery, setProductQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [pageNumber, setPageNumber] = useState(0);
   const [pageSize] = useState(20);
-
-  useEffect(() => {
-    setActiveTab(tabFromUrl);
-  }, [tabFromUrl]);
 
   const {
     data: promotion,
@@ -120,6 +238,86 @@ export default function PromotionDetailPage() {
       return res.value;
     },
     staleTime: 30_000,
+  });
+
+  const tabs = useMemo(() => {
+    const nextTabs = [
+      { key: "info", label: "Thông tin chung", icon: FiInfo },
+      { key: "products", label: "Sản phẩm áp dụng", icon: FiPackage },
+    ];
+
+    if ((promotion?.requiredProducts || []).length > 0) {
+      nextTabs.push({
+        key: "required-products",
+        label: "Sản phẩm điều kiện",
+        icon: FiLayers,
+      });
+    }
+
+    if ((promotion?.freeProducts || []).length > 0) {
+      nextTabs.push({
+        key: "free-products",
+        label: "Sản phẩm quà tặng",
+        icon: FiGift,
+      });
+    }
+
+    return nextTabs;
+  }, [promotion]);
+
+  useEffect(() => {
+    if (!promotion) {
+      setActiveTab(tabFromUrl);
+      return;
+    }
+
+    const nextTab = tabs.some((tab) => tab.key === tabFromUrl)
+      ? tabFromUrl
+      : DEFAULT_TAB;
+
+    setActiveTab(nextTab);
+
+    if (nextTab !== tabFromUrl) {
+      setSearchParams({ tab: nextTab }, { replace: true });
+    }
+  }, [promotion, setSearchParams, tabFromUrl, tabs]);
+
+  const relatedProductIds = useMemo(() => {
+    if (!promotion) return [];
+
+    const ids = new Set();
+
+    [...(promotion.requiredProducts || []), ...(promotion.freeProducts || [])].forEach(
+      (item) => {
+        if (item?.productId) {
+          ids.add(String(item.productId));
+        }
+      },
+    );
+
+    return Array.from(ids);
+  }, [promotion]);
+
+  const {
+    data: relatedProductMap = {},
+    isLoading: relatedProductsLoading,
+    isFetching: relatedProductsFetching,
+  } = useQuery({
+    enabled: relatedProductIds.length > 0,
+    queryKey: ["promotion-related-products", relatedProductIds],
+    queryFn: async () => {
+      const entries = await Promise.all(
+        relatedProductIds.map(async (productId) => {
+          const res = await apiService.get(`/product/${productId}`);
+          const succeeded = res?.statusCode === 200 || res?.status === 200;
+
+          return [productId, succeeded && res.value ? res.value : null];
+        }),
+      );
+
+      return Object.fromEntries(entries);
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const disableMutation = useMutation({
@@ -200,9 +398,17 @@ export default function PromotionDetailPage() {
   const totalItems = productData?.totalCount || 0;
   const totalPages = productData?.totalPages || 1;
   const loadingProducts = productsLoading || productsFetching;
+  const loadingRelatedProducts = relatedProductsLoading || relatedProductsFetching;
   const status = useMemo(() => getPromotionStatus(promotion), [promotion]);
-  const isActive = promotion?.status ?? promotion?.isActive ?? false;
+  const isActive = promotion?.isActive ?? promotion?.status ?? false;
   const discountType = promotion?.discountType ?? promotion?.type;
+  const requiredProducts = promotion?.requiredProducts || [];
+  const freeProducts = promotion?.freeProducts || [];
+
+  const requiredLogicLabel =
+    requiredProducts.length > 1
+      ? getRequiredProductLogicLabel(promotion?.requiredProductLogic)
+      : "Không áp dụng";
 
   const changeTab = (tab) => {
     setActiveTab(tab);
@@ -310,7 +516,7 @@ export default function PromotionDetailPage() {
       </div>
 
       <div className="mt-4 rounded-lg border border-slate-200 bg-white shadow-sm">
-        <Tabs active={activeTab} onChange={changeTab} />
+        <Tabs active={activeTab} onChange={changeTab} tabs={tabs} />
 
         <div className="p-6">
           {activeTab === "info" && (
@@ -374,11 +580,11 @@ export default function PromotionDetailPage() {
                     />
                     <InfoRow
                       label="Giới hạn sử dụng"
-                      value={promotion.usageLimit ?? "∞"}
+                      value={promotion.maxUsageCount ?? promotion.usageLimit ?? "∞"}
                     />
                     <InfoRow
                       label="Giới hạn mỗi khách"
-                      value={promotion.usagePerUser ?? "-"}
+                      value={promotion.maxUsagePerUser ?? promotion.usagePerUser ?? "-"}
                     />
                     <InfoRow
                       label="Cộng dồn khuyến mãi"
@@ -386,7 +592,7 @@ export default function PromotionDetailPage() {
                     />
                     <InfoRow
                       label="Logic sản phẩm điều kiện"
-                      value={getRequiredProductLogicLabel(promotion.requiredProductLogic)}
+                      value={requiredLogicLabel}
                     />
                     <InfoRow
                       label="Số sản phẩm quà tặng được chọn"
@@ -404,10 +610,7 @@ export default function PromotionDetailPage() {
                     <InfoRow label="Brand ID" value={promotion.brandId || "-"} />
                     <InfoRow label="Bắt đầu" value={formatDateTime(promotion.startDate)} />
                     <InfoRow label="Kết thúc" value={formatDateTime(promotion.endDate)} />
-                    <InfoRow
-                      label="Đang bật"
-                      value={isActive ? "Có" : "Không"}
-                    />
+                    <InfoRow label="Đang bật" value={isActive ? "Có" : "Không"} />
                     <InfoRow
                       label="Đã hết hạn"
                       value={promotion.isExpired ? "Có" : "Không"}
@@ -528,6 +731,86 @@ export default function PromotionDetailPage() {
                   onPageChange={setPageNumber}
                 />
               </div>
+            </div>
+          )}
+
+          {activeTab === "required-products" && (
+            <div>
+              <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800">
+                    Sản phẩm điều kiện
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Tổng cộng {requiredProducts.length} sản phẩm điều kiện
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  Logic áp dụng:{" "}
+                  <span className="font-semibold text-slate-800">
+                    {requiredLogicLabel}
+                  </span>
+                </div>
+              </div>
+
+              <RelatedProductsTable
+                rows={requiredProducts}
+                productMap={relatedProductMap}
+                loading={loadingRelatedProducts}
+                emptyText="Khuyến mãi này không có sản phẩm điều kiện."
+                quantityColumns={[
+                  {
+                    key: "minQuantity",
+                    label: "Số lượng tối thiểu",
+                    render: (row) => row.minQuantity ?? "-",
+                  },
+                  {
+                    key: "maxQuantity",
+                    label: "Số lượng tối đa",
+                    render: (row) => row.maxQuantity ?? "-",
+                  },
+                ]}
+                onProductClick={(productId) => navigate(`/admin/products/${productId}`)}
+              />
+            </div>
+          )}
+
+          {activeTab === "free-products" && (
+            <div>
+              <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800">
+                    Sản phẩm quà tặng
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Tổng cộng {freeProducts.length} sản phẩm quà tặng
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  Khách hàng được chọn tối đa{" "}
+                  <span className="font-semibold text-slate-800">
+                    {promotion.freeItemPickCount ?? "-"}
+                  </span>{" "}
+                  sản phẩm
+                </div>
+              </div>
+
+              <RelatedProductsTable
+                rows={freeProducts}
+                productMap={relatedProductMap}
+                loading={loadingRelatedProducts}
+                emptyText="Khuyến mãi này không có sản phẩm quà tặng."
+                quantityColumns={[
+                  {
+                    key: "quantity",
+                    label: "Số lượng tặng",
+                    render: (row) => row.quantity ?? "-",
+                  },
+                ]}
+                onProductClick={(productId) => navigate(`/admin/products/${productId}`)}
+              />
             </div>
           )}
         </div>
