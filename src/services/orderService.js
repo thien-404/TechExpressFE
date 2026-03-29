@@ -228,4 +228,9 @@ export const orderService = {
   async completeOrder(orderId) {
     return runOrderStatusAction(orderId, "completed");
   },
+
+  async cancelOrder(orderId) {
+    const response = await apiService.put(`/Order/${orderId}/cancel`, {});
+    return normalizeEnvelope(response);
+  },
 };

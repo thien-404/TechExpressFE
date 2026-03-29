@@ -179,6 +179,14 @@ function getPromotionBenefitText(promotion) {
   return promotion?.code || promotion?.type || "Khuyến mãi áp dụng";
 }
 
+function canCustomerCancelOrder(orderDetail, user) {
+  if (!orderDetail?.id) return false;
+  if (normalizeKey(user?.role) !== "customer") return false;
+
+  const orderStatus = normalizeKey(orderDetail?.status);
+  return orderStatus === "pending" || orderStatus === "confirmed";
+}
+
 export default function OrderDetailTab({ orderId, onBack }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -213,6 +221,7 @@ export default function OrderDetailTab({ orderId, onBack }) {
   );
   const notesText = useMemo(() => getPlainNotes(order?.notes), [order?.notes]);
   const orderHasDiscount = useMemo(() => hasOrderDiscount(order), [order]);
+  const canCancelOrder = useMemo(() => canCustomerCancelOrder(order, user), [order, user]);
 
   const payMutation = useMutation({
     mutationFn: async () => {
@@ -287,6 +296,41 @@ export default function OrderDetailTab({ orderId, onBack }) {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      if (!order?.id) {
+        throw new Error("Không tìm thấy mã đơn hàng.");
+      }
+
+      const response = await orderService.cancelOrder(order.id);
+      if (!response.succeeded) {
+        throw new Error(response.message || "Không thể hủy đơn hàng.");
+      }
+    },
+    onSuccess: async () => {
+      toast.success("Đã hủy đơn hàng.");
+      await Promise.all([
+        refetch(),
+        queryClient.invalidateQueries({ queryKey: ["account-orders"] }),
+        queryClient.invalidateQueries({ queryKey: ["account-order-detail", orderId] }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err?.message || "Không thể hủy đơn hàng.");
+    },
+  });
+
+  const handleCancelOrder = () => {
+    if (!canCancelOrder || cancelMutation.isPending) return;
+
+    const shouldCancel = window.confirm(
+      "Bạn có chắc muốn hủy đơn hàng này? Nếu đơn đã thanh toán, sẽ hoàn lại 90% số tiền đã thanh toán theo quy định hiện tại."
+    );
+
+    if (!shouldCancel) return;
+    cancelMutation.mutate();
+  };
+
   return (
     <section className="flex-1 min-w-0 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -324,6 +368,17 @@ export default function OrderDetailTab({ orderId, onBack }) {
               className="h-9 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {completeMutation.isPending ? "Đang hoàn tất..." : "Hoàn tất đơn hàng"}
+            </button>
+          )}
+
+          {canCancelOrder && (
+            <button
+              type="button"
+              onClick={handleCancelOrder}
+              disabled={cancelMutation.isPending}
+              className="h-9 rounded-lg bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {cancelMutation.isPending ? "Đang hủy..." : "Hủy đơn hàng"}
             </button>
           )}
 
