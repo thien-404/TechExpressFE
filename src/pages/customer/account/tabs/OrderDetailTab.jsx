@@ -151,6 +151,34 @@ function getPayableInstallmentId(orderDetail) {
   return payableInstallment?.id || null;
 }
 
+function hasOrderDiscount(orderDetail) {
+  return Number(orderDetail?.discountAmount ?? orderDetail?.subTotalDiscountValue ?? 0) > 0;
+}
+
+function getPromotionBenefitText(promotion) {
+  const type = normalizeKey(promotion?.type);
+  const discountValue = Number(promotion?.discountValue);
+  const maxDiscountValue = Number(promotion?.maxDiscountValue);
+
+  if (type.includes("percentage") && Number.isFinite(discountValue) && discountValue > 0) {
+    const maxText =
+      Number.isFinite(maxDiscountValue) && maxDiscountValue > 0
+        ? ` • tối đa ${formatMoney(maxDiscountValue)}`
+        : "";
+    return `Giảm ${discountValue}%${maxText}`;
+  }
+
+  if (type.includes("fixed") && Number.isFinite(discountValue) && discountValue > 0) {
+    return `Giảm ${formatMoney(discountValue)}`;
+  }
+
+  if (Array.isArray(promotion?.freeProducts) && promotion.freeProducts.length > 0) {
+    return "Khuyến mãi quà tặng";
+  }
+
+  return promotion?.code || promotion?.type || "Khuyến mãi áp dụng";
+}
+
 export default function OrderDetailTab({ orderId, onBack }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -184,6 +212,7 @@ export default function OrderDetailTab({ orderId, onBack }) {
     [order, user?.id, user?.role]
   );
   const notesText = useMemo(() => getPlainNotes(order?.notes), [order?.notes]);
+  const orderHasDiscount = useMemo(() => hasOrderDiscount(order), [order]);
 
   const payMutation = useMutation({
     mutationFn: async () => {
@@ -362,13 +391,58 @@ export default function OrderDetailTab({ orderId, onBack }) {
           )}
 
           <div className="mt-3 rounded-xl border border-slate-200 p-3">
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-              <PriceRow label="Tạm tính" value={order.subTotal} />
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm md:grid-cols-3">
+              <PriceRow label="Tạm tính" value={order.originalSubTotal ?? order.subTotal} />
+              {orderHasDiscount && (
+                <PriceRow
+                  label="Giảm giá đơn hàng"
+                  value={order.discountAmount ?? order.subTotalDiscountValue}
+                  prefix="- "
+                  valueClassName="text-emerald-700"
+                />
+              )}
+              {orderHasDiscount && (
+                <PriceRow
+                  label="Tạm tính sau giảm"
+                  value={order.discountedSubTotal ?? order.subTotalDiscount}
+                />
+              )}
               <PriceRow label="Phí ship" value={order.shippingCost} />
               <PriceRow label="Thuế" value={order.tax} />
               <PriceRow label="Tổng tiền" value={order.totalPrice} highlight />
             </div>
           </div>
+
+          {(order.promotions || []).length > 0 && (
+            <section className="mt-4">
+              <h3 className="text-sm font-semibold text-slate-900">Khuyến mãi áp dụng</h3>
+              <div className="mt-2 space-y-2">
+                {order.promotions.map((promotion, index) => (
+                  <article
+                    key={promotion.id || promotion.code || index}
+                    className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {promotion.name || promotion.code || "Khuyến mãi áp dụng"}
+                        </p>
+                        {promotion.code && (
+                          <p className="mt-0.5 text-xs text-slate-600">Mã: {promotion.code}</p>
+                        )}
+                      </div>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        {getPromotionBenefitText(promotion)}
+                      </span>
+                    </div>
+                    {promotion.description && (
+                      <p className="mt-2 text-xs text-slate-600">{promotion.description}</p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="mt-4">
             <h3 className="text-sm font-semibold text-slate-900">Sản phẩm</h3>
@@ -386,13 +460,7 @@ export default function OrderDetailTab({ orderId, onBack }) {
                         {item?.product?.name || "Sản phẩm"}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">SKU: {item?.product?.sku || "--"}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                        <span>SL: {item.quantity || 0}</span>
-                        <span>Đơn giá: {formatMoney(item.unitPrice)}</span>
-                        <span className="font-semibold text-slate-800">
-                          Thành tiền: {formatMoney(item.totalPrice)}
-                        </span>
-                      </div>
+                      <OrderItemPricing item={item} />
                       <div className="mt-3">
                         <button
                           type="button"
@@ -473,13 +541,61 @@ function InfoLine({ label, value }) {
   );
 }
 
-function PriceRow({ label, value, highlight = false }) {
+function PriceRow({ label, value, highlight = false, prefix = "", valueClassName = "" }) {
   return (
     <div>
       <p className="text-[11px] text-slate-500">{label}</p>
-      <p className={`text-sm font-semibold ${highlight ? "text-red-600" : "text-slate-800"}`}>
+      <p
+        className={`text-sm font-semibold ${
+          highlight ? "text-red-600" : "text-slate-800"
+        } ${valueClassName}`.trim()}
+      >
+        {prefix}
         {formatMoney(value)}
       </p>
+    </div>
+  );
+}
+
+function OrderItemPricing({ item }) {
+  if (!item?.hasDiscount) {
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+        <span>SL: {item?.quantity || 0}</span>
+        <span>Đơn giá: {formatMoney(item?.unitPrice)}</span>
+        <span className="font-semibold text-slate-800">
+          Thành tiền: {formatMoney(item?.discountedLineTotal ?? item?.totalPrice)}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 space-y-1 text-xs text-slate-600">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span>SL: {item?.quantity || 0}</span>
+        <span>
+          Đơn giá gốc:{" "}
+          <span className="text-slate-500 line-through">{formatMoney(item?.unitPrice)}</span>
+        </span>
+        <span className="font-semibold text-emerald-700">
+          Đơn giá sau giảm: {formatMoney(item?.effectiveUnitPrice)}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {item?.discountValue != null && (
+          <span>Giảm mỗi sản phẩm: {formatMoney(item.discountValue)}</span>
+        )}
+        <span>
+          Thành tiền gốc:{" "}
+          <span className="text-slate-500 line-through">
+            {formatMoney(item?.originalLineTotal)}
+          </span>
+        </span>
+        <span className="font-semibold text-emerald-700">
+          Thành tiền sau giảm: {formatMoney(item?.discountedLineTotal)}
+        </span>
+      </div>
     </div>
   );
 }

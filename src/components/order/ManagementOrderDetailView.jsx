@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -82,6 +82,9 @@ const T = {
     "Đơn sẽ được ghi nhận là staff tự giao hàng, không cần nhập thêm thông tin vận chuyển.",
   courierServiceRequired: "Vui lòng nhập đơn vị vận chuyển.",
   trackingCodeRequired: "Vui lòng nhập mã vận đơn.",
+  orderDiscount: "Giảm giá đơn hàng",
+  discountedSubtotal: "Tạm tính sau giảm",
+  appliedPromotions: "Khuyến mãi áp dụng",
 };
 
 const TRANSITION_TONE_CLASS = {
@@ -97,11 +100,39 @@ const DEFAULT_DELIVERY_FORM = {
   courierTrackingCode: "",
 };
 
-function InfoField({ label, value }) {
+function hasOrderDiscount(order) {
+  return Number(order?.discountAmount ?? order?.subTotalDiscountValue ?? 0) > 0;
+}
+
+function getPromotionBenefitText(promotion) {
+  const type = normalizeKey(promotion?.type);
+  const discountValue = Number(promotion?.discountValue);
+  const maxDiscountValue = Number(promotion?.maxDiscountValue);
+
+  if (type.includes("percentage") && Number.isFinite(discountValue) && discountValue > 0) {
+    const maxText =
+      Number.isFinite(maxDiscountValue) && maxDiscountValue > 0
+        ? ` • tối đa ${formatPrice(maxDiscountValue)}`
+        : "";
+    return `Giảm ${discountValue}%${maxText}`;
+  }
+
+  if (type.includes("fixed") && Number.isFinite(discountValue) && discountValue > 0) {
+    return `Giảm ${formatPrice(discountValue)}`;
+  }
+
+  if (Array.isArray(promotion?.freeProducts) && promotion.freeProducts.length > 0) {
+    return "Khuyến mãi quà tặng";
+  }
+
+  return promotion?.code || promotion?.type || "Khuyến mãi áp dụng";
+}
+
+function InfoField({ label, value, valueClassName = "mt-1 break-words text-sm text-slate-800" }) {
   return (
     <div className="rounded-lg border border-slate-200 p-3">
       <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 break-words text-sm text-slate-800">{value ?? "--"}</div>
+      <div className={valueClassName}>{value ?? "--"}</div>
     </div>
   );
 }
@@ -279,6 +310,7 @@ export default function ManagementOrderDetailView({
   const toneClass = TRANSITION_TONE_CLASS[transitionState.tone] || TRANSITION_TONE_CLASS.muted;
   const receiverPhone = order.trackingPhone || order.receiverPhone || "--";
   const orderLabel = `#${String(order.id || "").slice(0, 8).toUpperCase()}`;
+  const orderHasDiscount = hasOrderDiscount(order);
 
   return (
     <div className="font-[var(--font-inter)]">
@@ -462,13 +494,61 @@ export default function ManagementOrderDetailView({
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <InfoField label={T.subtotal} value={formatPrice(order.subTotal)} />
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <InfoField label={T.subtotal} value={formatPrice(order.originalSubTotal ?? order.subTotal)} />
+          {orderHasDiscount && (
+            <InfoField
+              label={T.orderDiscount}
+              value={`- ${formatPrice(order.discountAmount ?? order.subTotalDiscountValue)}`}
+              valueClassName="mt-1 break-words text-sm font-semibold text-emerald-700"
+            />
+          )}
+          {orderHasDiscount && (
+            <InfoField
+              label={T.discountedSubtotal}
+              value={formatPrice(order.discountedSubTotal ?? order.subTotalDiscount)}
+            />
+          )}
           <InfoField label={T.shippingFee} value={formatPrice(order.shippingCost)} />
           <InfoField label={T.tax} value={formatPrice(order.tax)} />
-          <InfoField label={T.total} value={formatPrice(order.totalPrice)} />
+          <InfoField
+            label={T.total}
+            value={formatPrice(order.totalPrice)}
+            valueClassName="mt-1 break-words text-sm font-semibold text-rose-600"
+          />
         </div>
       </div>
+
+      {(order.promotions || []).length > 0 && (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-800">{T.appliedPromotions}</h2>
+          <div className="mt-3 space-y-3">
+            {order.promotions.map((promotion, index) => (
+              <article
+                key={promotion.id || promotion.code || index}
+                className="rounded-lg border border-emerald-200 bg-white/70 p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-800">
+                      {promotion.name || promotion.code || "Khuyến mãi áp dụng"}
+                    </div>
+                    {promotion.code && (
+                      <div className="mt-1 text-xs text-slate-600">Mã: {promotion.code}</div>
+                    )}
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                    {getPromotionBenefitText(promotion)}
+                  </span>
+                </div>
+                {promotion.description && (
+                  <div className="mt-2 text-xs text-slate-600">{promotion.description}</div>
+                )}
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-base font-semibold text-slate-800">{T.orderItems}</h2>
@@ -513,13 +593,44 @@ export default function ManagementOrderDetailView({
                       <div className="mt-1 text-xs text-slate-500">
                         {T.sku}: {product?.sku || "--"}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
-                        <span>{T.quantity}: {item.quantity || 0}</span>
-                        <span>{T.unitPrice}: {formatPrice(item.unitPrice)}</span>
-                        <span className="font-semibold text-slate-800">
-                          {T.lineTotal}: {formatPrice(item.totalPrice)}
-                        </span>
-                      </div>
+                      {item?.hasDiscount ? (
+                        <div className="mt-2 space-y-1 text-xs text-slate-600">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            <span>{T.quantity}: {item.quantity || 0}</span>
+                            <span>
+                              {T.unitPrice}:{" "}
+                              <span className="text-slate-500 line-through">
+                                {formatPrice(item.unitPrice)}
+                              </span>
+                            </span>
+                            <span className="font-semibold text-emerald-700">
+                              Đơn giá sau giảm: {formatPrice(item.effectiveUnitPrice)}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {item.discountValue != null && (
+                              <span>Giảm mỗi sản phẩm: {formatPrice(item.discountValue)}</span>
+                            )}
+                            <span>
+                              {T.lineTotal}:{" "}
+                              <span className="text-slate-500 line-through">
+                                {formatPrice(item.originalLineTotal)}
+                              </span>
+                            </span>
+                            <span className="font-semibold text-emerald-700">
+                              Thành tiền sau giảm: {formatPrice(item.discountedLineTotal)}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                          <span>{T.quantity}: {item.quantity || 0}</span>
+                          <span>{T.unitPrice}: {formatPrice(item.unitPrice)}</span>
+                          <span className="font-semibold text-slate-800">
+                            {T.lineTotal}: {formatPrice(item.discountedLineTotal ?? item.totalPrice)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </article>

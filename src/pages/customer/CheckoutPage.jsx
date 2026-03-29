@@ -55,7 +55,8 @@ async function fetchCurrentUserProfile() {
 }
 
 function getInstallmentIdFromOrder(orderData) {
-  return orderData?.installments?.[0]?.id || orderData?.firstInstallmentId || null;
+  const installments = Array.isArray(orderData?.installments) ? orderData.installments : [];
+  return installments.find((installment) => installment?.id)?.id || orderData?.firstInstallmentId || null;
 }
 
 export default function CheckoutPage() {
