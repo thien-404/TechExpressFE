@@ -1,12 +1,13 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, Package, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import Breadcrumb from "../ui/Breadcrumb";
 import TicketThreadView from "./TicketThreadView";
 import useTicketSignalR from "../../hooks/useTicketSignalR";
+import { customPcService } from "../../services/customPcService";
 import { ticketService } from "../../services/ticketService";
 import { warrantySupportService } from "../../services/warrantySupportService";
 import { useAuth } from "../../store/authContext";
@@ -15,6 +16,7 @@ import {
   appendTicketMessage,
   buildTicketReplyPayload,
   formatTicketDate,
+  formatTicketDateTime,
   getTicketStatusLabel,
   isTicketReplyLocked,
   mergeTicketUpdate,
@@ -27,11 +29,18 @@ const ACTION_CLASS_NAMES = {
   neutral: "bg-slate-700 text-white hover:bg-slate-800",
 };
 
+const moneyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+});
+
+function formatMoney(value) {
+  return moneyFormatter.format(Number(value || 0));
+}
+
 function getTicketActions(status) {
   if (status === "Open") {
-    return [
-      { label: "Nhận xử lý", status: "InProgress", kind: "status", tone: "primary" },
-    ];
+    return [{ label: "Nhận xử lý", status: "InProgress", kind: "status", tone: "primary" }];
   }
 
   if (status === "InProgress") {
@@ -54,12 +63,30 @@ function getTicketActions(status) {
   }
 
   if (status === "Resolved") {
-    return [
-      { label: "Đóng ticket", status: "Closed", kind: "complete", tone: "neutral" },
-    ];
+    return [{ label: "Đóng ticket", status: "Closed", kind: "complete", tone: "neutral" }];
   }
 
   return [];
+}
+
+function getBuildItemLineTotal(item) {
+  return (Number(item?.unitPrice || 0) || 0) * (Number(item?.quantity || 0) || 0);
+}
+
+function getBuildItemCount(build) {
+  return (build?.items || []).reduce((sum, item) => sum + (Number(item?.quantity || 0) || 0), 0);
+}
+
+function getBuildItemName(item) {
+  return item?.product?.name || item?.productName || "Linh kiện";
+}
+
+function getBuildItemCategory(item) {
+  return item?.product?.categoryName || "Linh kiện khác";
+}
+
+function getBuildItemImage(item) {
+  return item?.product?.firstImageUrl || item?.firstImageUrl || "";
 }
 
 function WarrantyPanel({
@@ -146,6 +173,117 @@ function WarrantyPanel({
   );
 }
 
+function CustomPcPanel({ build, loading = false, errorMessage = "" }) {
+  const itemCount = getBuildItemCount(build);
+  const totalPrice =
+    Number(build?.totalPrice || 0) > 0
+      ? Number(build.totalPrice)
+      : (build?.items || []).reduce((sum, item) => sum + getBuildItemLineTotal(item), 0);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">Cấu hình Custom PC</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Chi tiết linh kiện của cấu hình liên quan để staff/admin kiểm tra nhanh ngay trong ticket.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Tên cấu hình</div>
+          <div className="mt-1 text-sm font-medium text-slate-900">{build?.name || "--"}</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Mã cấu hình</div>
+          <div className="mt-1 break-all text-sm font-medium text-slate-900">{build?.id || "--"}</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Cập nhật gần nhất</div>
+          <div className="mt-1 text-sm text-slate-900">{formatTicketDateTime(build?.updatedAt)}</div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <div className="text-xs uppercase tracking-wide text-slate-500">Tổng quan</div>
+          <div className="mt-1 text-sm font-medium text-slate-900">
+            {itemCount} linh kiện • {formatMoney(totalPrice)}
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="mt-4 flex h-32 items-center justify-center rounded-xl border border-slate-200 bg-white">
+          <Loader2 size={22} className="animate-spin text-[#0090D0]" />
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {!loading && (build?.items || []).length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {(build.items || []).map((item, index) => (
+            <article
+              key={item.id || `${item.productId}-${index}`}
+              className="rounded-xl border border-slate-200 bg-white p-4"
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    {getBuildItemImage(item) ? (
+                      <img
+                        src={getBuildItemImage(item)}
+                        alt={getBuildItemName(item)}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <Package size={24} className="text-slate-300" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-sm font-semibold text-slate-900">
+                      {getBuildItemName(item)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">{getBuildItemCategory(item)}</p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                      <span>Số lượng: {Number(item?.quantity || 0) || 0}</span>
+                      <span>Bảo hành: {Number(item?.warrantyMonth || 0) || 0} tháng</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm lg:min-w-[280px]">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">Đơn giá</div>
+                    <div className="mt-1 font-medium text-slate-900">{formatMoney(item?.unitPrice)}</div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-slate-500">Thành tiền</div>
+                    <div className="mt-1 font-semibold text-[#0090D0]">
+                      {formatMoney(getBuildItemLineTotal(item))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      {!loading && !errorMessage && (!build?.items || build.items.length === 0) ? (
+        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+          Cấu hình này hiện chưa có linh kiện nào để hiển thị.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function TicketManagementDetailView({ basePath, roleLabel }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -173,6 +311,28 @@ export default function TicketManagementDetailView({ basePath, roleLabel }) {
   }, [ticketId]);
 
   const ticket = ticketQuery.data || null;
+  const embeddedCustomPcBuild = ticket?.customPC ? customPcService.normalizeBuild(ticket.customPC) : null;
+  const hasEmbeddedCustomPcItems = Boolean(embeddedCustomPcBuild?.items?.length);
+  const customPcReferenceId = ticket?.customPCId || ticket?.customPC?.id || null;
+  const customPcDetailQuery = useQuery({
+    enabled: !!customPcReferenceId && !hasEmbeddedCustomPcItems,
+    queryKey: ["ticket", "manage", "custom-pc", customPcReferenceId],
+    queryFn: async () => {
+      const response = await customPcService.getCustomPcBuildDetail(customPcReferenceId);
+      if (!response.succeeded || !response.value) {
+        throw new Error(response.message || "Không tải được chi tiết cấu hình Custom PC.");
+      }
+      return response.value;
+    },
+  });
+
+  const customPcBuild = hasEmbeddedCustomPcItems
+    ? embeddedCustomPcBuild
+    : customPcDetailQuery.data || embeddedCustomPcBuild || null;
+  const customPcErrorMessage =
+    !hasEmbeddedCustomPcItems && customPcDetailQuery.isError
+      ? customPcDetailQuery.error?.message || "Không tải được chi tiết cấu hình Custom PC."
+      : "";
 
   const statusMutation = useMutation({
     mutationFn: async ({ nextStatus, kind }) => {
@@ -181,7 +341,9 @@ export default function TicketManagementDetailView({ basePath, roleLabel }) {
           ? await ticketService.updateTicketStatus(ticketId, nextStatus)
           : await ticketService.completeTicket(ticketId, nextStatus);
       if (!response.succeeded) {
-        throw new Error(response.message || `Không thể cập nhật trạng thái sang ${getTicketStatusLabel(nextStatus)}.`);
+        throw new Error(
+          response.message || `Không thể cập nhật trạng thái sang ${getTicketStatusLabel(nextStatus)}.`
+        );
       }
       return { nextStatus };
     },
@@ -280,6 +442,8 @@ export default function TicketManagementDetailView({ basePath, roleLabel }) {
 
   const actions = getTicketActions(ticket?.status);
   const replyLocked = isTicketReplyLocked(ticket?.status);
+  const hasCustomPcContext = Boolean(customPcReferenceId || ticket?.customPC);
+  const shouldShowExtraPanel = hasCustomPcContext || ticket?.type === "WarrantyRequest";
 
   return (
     <div className="space-y-5">
@@ -302,7 +466,12 @@ export default function TicketManagementDetailView({ basePath, roleLabel }) {
 
         <button
           type="button"
-          onClick={() => ticketQuery.refetch()}
+          onClick={() => {
+            ticketQuery.refetch();
+            if (customPcReferenceId && !hasEmbeddedCustomPcItems) {
+              customPcDetailQuery.refetch();
+            }
+          }}
           className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
           <RefreshCw size={16} />
@@ -341,16 +510,28 @@ export default function TicketManagementDetailView({ basePath, roleLabel }) {
             </button>
           ))}
           extraPanel={
-            ticket.type === "WarrantyRequest" ? (
-              <WarrantyPanel
-                result={warrantyResult}
-                checkDate={checkDate}
-                onCheckDateChange={setCheckDate}
-                onCheckNow={() => checkWarrantyNowMutation.mutate()}
-                onCheckCustomDate={() => checkWarrantyCustomDateMutation.mutate()}
-                checkingNow={checkWarrantyNowMutation.isPending}
-                checkingCustomDate={checkWarrantyCustomDateMutation.isPending}
-              />
+            shouldShowExtraPanel ? (
+              <div className="space-y-4">
+                {hasCustomPcContext ? (
+                  <CustomPcPanel
+                    build={customPcBuild}
+                    loading={customPcDetailQuery.isLoading && !hasEmbeddedCustomPcItems}
+                    errorMessage={customPcErrorMessage}
+                  />
+                ) : null}
+
+                {ticket.type === "WarrantyRequest" ? (
+                  <WarrantyPanel
+                    result={warrantyResult}
+                    checkDate={checkDate}
+                    onCheckDateChange={setCheckDate}
+                    onCheckNow={() => checkWarrantyNowMutation.mutate()}
+                    onCheckCustomDate={() => checkWarrantyCustomDateMutation.mutate()}
+                    checkingNow={checkWarrantyNowMutation.isPending}
+                    checkingCustomDate={checkWarrantyCustomDateMutation.isPending}
+                  />
+                ) : null}
+              </div>
             ) : null
           }
         />
