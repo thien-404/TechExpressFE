@@ -716,7 +716,9 @@ export default function ProductDetailPage() {
           meta: {
             productName: product.name,
             productImage: images[0] || "",
-            unitPrice: product.price,
+            unitPrice: pricing.originalPrice,
+            discountValue: product.discountValue,
+            discountAmountPerItem: pricing.discountAmount,
             availableStock: stock,
             productStatus: product.status || "Available",
           },

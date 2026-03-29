@@ -476,6 +476,11 @@ export default function CustomPcBuilderPage() {
 
       for (const item of activeBuild.items) {
         const product = item?.product || {};
+        const baseUnitPrice = Number(item.unitPrice ?? product.price ?? 0) || 0;
+        const pricing = normalizeProductPricing({
+          ...product,
+          price: baseUnitPrice,
+        });
         if (!item?.productId) continue;
 
         await dispatch(
@@ -486,7 +491,9 @@ export default function CustomPcBuilderPage() {
             meta: {
               productName: product.name || item.productName || "Sản phẩm",
               productImage: product.firstImageUrl || item.firstImageUrl || "",
-              unitPrice: Number(item.unitPrice ?? product.price ?? 0) || 0,
+              unitPrice: pricing.originalPrice || baseUnitPrice,
+              discountValue: product.discountValue ?? item.discountValue,
+              discountAmountPerItem: pricing.discountAmount,
               availableStock:
                 product.stockQty === null || product.stockQty === undefined ? null : Math.max(Number(product.stockQty) || 0, 0),
               productStatus: product.status || "Available",

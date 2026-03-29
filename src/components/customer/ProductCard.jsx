@@ -62,7 +62,9 @@ export default function ProductCard({ product, badge, showRank }) {
           meta: {
             productName: product.name,
             productImage: product.firstImageUrl,
-            unitPrice: product.price,
+            unitPrice: pricing.originalPrice,
+            discountValue: product.discountValue,
+            discountAmountPerItem: pricing.discountAmount,
             availableStock: stock,
             productStatus: product.status || "Available",
           },

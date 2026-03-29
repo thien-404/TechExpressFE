@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { orderService } from "../../../../services/orderService";
 import { useAuth } from "../../../../store/authContext.jsx";
 import { canViewerCompleteOrder } from "../../../../utils/orderManagement";
+import {
+  buildCheckoutPaymentUrls,
+  storePendingPaymentSessionId,
+} from "../../../../utils/paymentGateway";
 import { buildTicketEntryPath } from "../../../../utils/ticket";
 
 const ONLINE_PAYMENT_METHOD = 1;
@@ -190,13 +194,16 @@ export default function OrderDetailTab({ orderId, onBack }) {
       const payableInstallmentId = getPayableInstallmentId(order);
       const isInstallmentOrder =
         normalizeKey(order?.paidType) === "installment" || (order?.installments || []).length > 0;
-      const returnUrl = `${window.location.origin}/checkout?paymentReturn=1`;
+      const { returnUrl, cancelUrl } = buildCheckoutPaymentUrls(
+        window.location.origin
+      );
       let response;
 
       if (payableInstallmentId) {
         response = await orderService.initInstallmentOnlinePayment(payableInstallmentId, {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
+          cancelUrl,
         });
       } else if (isInstallmentOrder) {
         throw new Error("Không tìm thấy kỳ trả góp nào đang trong thời hạn thanh toán");
@@ -204,6 +211,7 @@ export default function OrderDetailTab({ orderId, onBack }) {
         response = await orderService.initOnlinePayment(order.id, {
           method: ONLINE_PAYMENT_METHOD,
           returnUrl,
+          cancelUrl,
         });
       }
 
@@ -216,6 +224,7 @@ export default function OrderDetailTab({ orderId, onBack }) {
         throw new Error("Không nhận được link thanh toán");
       }
 
+      storePendingPaymentSessionId(response.value?.sessionId);
       return redirectUrl;
     },
     onSuccess: (redirectUrl) => {

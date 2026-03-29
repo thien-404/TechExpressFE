@@ -1,12 +1,16 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { cartService } from "../../services/cartService";
+import {
+  getCartDisplaySubtotal,
+  getCartRawSubtotal,
+  getCartSavingsTotal,
+} from "../../utils/cartPricing";
 
 const CART_STORAGE_KEY = "techexpress_cart_v1";
 const CART_SELECTION_STORAGE_KEY = "techexpress_cart_selection_v1";
 
 const initialState = {
   items: [],
-  selectedItemKeys: [],
   initialized: false,
   source: "local",
   loading: false,
@@ -172,10 +176,6 @@ function isItemInvalid(item) {
   return outOfStatus || outOfStock || overStock;
 }
 
-function isItemSelectable(item) {
-  return !isItemInvalid(item);
-}
-
 function readCartFromStorage() {
   try {
     const raw = localStorage.getItem(CART_STORAGE_KEY);
@@ -205,24 +205,11 @@ function removeCartStorage() {
   }
 }
 
-function readSelectionFromStorage() {
+function removeSelectionStorage() {
   try {
-    const raw = sessionStorage.getItem(CART_SELECTION_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((key) => typeof key === "string");
+    sessionStorage.removeItem(CART_SELECTION_STORAGE_KEY);
   } catch (error) {
-    console.warn("Failed to read cart selection storage:", error);
-    return [];
-  }
-}
-
-function writeSelectionToStorage(keys) {
-  try {
-    sessionStorage.setItem(CART_SELECTION_STORAGE_KEY, JSON.stringify(keys));
-  } catch (error) {
-    console.warn("Failed to write cart selection storage:", error);
+    console.warn("Failed to clear cart selection storage:", error);
   }
 }
 
@@ -253,41 +240,16 @@ function mergeLocalCartWithServer(localItems, serverItems) {
   return Array.from(mergedMap.values());
 }
 
-function syncSelectedItemKeys(previousSelectedKeys = [], previousItems = [], nextItems = []) {
-  const previousKeySet = new Set(previousItems.map((item) => item.key));
-  const selectableNextKeys = nextItems
-    .filter(isItemSelectable)
-    .map((item) => item.key);
-  const selectableNextKeySet = new Set(selectableNextKeys);
-
-  const nextSelectedKeys = previousSelectedKeys.filter((key) =>
-    selectableNextKeySet.has(key)
-  );
-
-  selectableNextKeys.forEach((key) => {
-    if (!previousKeySet.has(key) && !nextSelectedKeys.includes(key)) {
-      nextSelectedKeys.push(key);
-    }
-  });
-
-  if (previousItems.length === 0 && previousSelectedKeys.length === 0) {
-    return selectableNextKeys;
-  }
-
-  return nextSelectedKeys;
-}
-
 export const bootstrapCart = createAsyncThunk(
   "cart/bootstrap",
   async ({ isAuthenticated } = {}, { rejectWithValue }) => {
     try {
       const localItems = readCartFromStorage();
-      const selectedItemKeys = readSelectionFromStorage();
+      removeSelectionStorage();
 
       return {
         isAuthenticated: !!isAuthenticated,
         localItems,
-        selectedItemKeys,
       };
     } catch (error) {
       return rejectWithValue(error?.message || "Bootstrap cart failed");
@@ -373,7 +335,17 @@ export const addCartItem = createAsyncThunk(
         nextItems = currentItems.map((item) => {
           if (item.productId !== productId) return item;
           const nextQuantity = item.quantity + quantity;
-          return recalculateCartLine(item, { quantity: nextQuantity });
+          return recalculateCartLine(item, {
+            quantity: nextQuantity,
+            productName: meta.productName || item.productName,
+            productImage: meta.productImage || item.productImage,
+            unitPrice: meta.unitPrice,
+            discountValue: meta.discountValue,
+            promotionType: meta.promotionType,
+            discountAmountPerItem: meta.discountAmountPerItem,
+            availableStock: meta.availableStock ?? item.availableStock,
+            productStatus: meta.productStatus || item.productStatus,
+          });
         });
       } else {
         nextItems = [
@@ -384,6 +356,9 @@ export const addCartItem = createAsyncThunk(
             productName: meta.productName,
             productImage: meta.productImage,
             unitPrice: meta.unitPrice,
+            discountValue: meta.discountValue,
+            promotionType: meta.promotionType,
+            discountAmountPerItem: meta.discountAmountPerItem,
             availableStock: meta.availableStock,
             productStatus: meta.productStatus || "Available",
           }),
@@ -538,22 +513,12 @@ export const removeCheckedOutLocalItems = createAsyncThunk(
   }
 );
 
-function persistSelection(keys) {
-  writeSelectionToStorage(keys);
-}
-
 function setItemsFromPayload(state, action) {
   const nextItems = action.payload?.items || [];
-  state.selectedItemKeys = syncSelectedItemKeys(
-    state.selectedItemKeys,
-    state.items,
-    nextItems
-  );
   state.items = nextItems;
   state.source = action.payload?.mode || state.source;
   state.error = null;
   state.lastSyncedAt = new Date().toISOString();
-  persistSelection(state.selectedItemKeys);
 }
 
 const cartSlice = createSlice({
@@ -562,7 +527,6 @@ const cartSlice = createSlice({
   reducers: {
     clearCartUiState(state) {
       state.items = [];
-      state.selectedItemKeys = [];
       state.initialized = true;
       state.source = "local";
       state.loading = false;
@@ -574,63 +538,14 @@ const cartSlice = createSlice({
       };
       state.error = null;
       state.lastSyncedAt = null;
+      removeSelectionStorage();
     },
     hydrateCartFromSignalR(state, action) {
       const nextItems = normalizeServerItems(action.payload);
-      state.selectedItemKeys = syncSelectedItemKeys(
-        state.selectedItemKeys,
-        state.items,
-        nextItems
-      );
       state.items = nextItems;
       state.source = "server";
       state.error = null;
       state.lastSyncedAt = new Date().toISOString();
-      persistSelection(state.selectedItemKeys);
-    },
-    toggleCartItemSelection(state, action) {
-      const itemKey = action.payload;
-      const item = state.items.find((entry) => entry.key === itemKey);
-      if (!item || !isItemSelectable(item)) return;
-
-      if (state.selectedItemKeys.includes(itemKey)) {
-        state.selectedItemKeys = state.selectedItemKeys.filter((key) => key !== itemKey);
-      } else {
-        state.selectedItemKeys.push(itemKey);
-      }
-
-      persistSelection(state.selectedItemKeys);
-    },
-    toggleSelectAllCartItems(state) {
-      const selectableKeys = state.items
-        .filter(isItemSelectable)
-        .map((item) => item.key);
-
-      if (selectableKeys.length === 0) {
-        state.selectedItemKeys = [];
-        persistSelection(state.selectedItemKeys);
-        return;
-      }
-
-      const hasSelectedAll = selectableKeys.every((key) =>
-        state.selectedItemKeys.includes(key)
-      );
-
-      if (hasSelectedAll) {
-        state.selectedItemKeys = state.selectedItemKeys.filter(
-          (key) => !selectableKeys.includes(key)
-        );
-      } else {
-        const selectedKeySet = new Set(state.selectedItemKeys);
-        selectableKeys.forEach((key) => selectedKeySet.add(key));
-        state.selectedItemKeys = Array.from(selectedKeySet);
-      }
-
-      persistSelection(state.selectedItemKeys);
-    },
-    clearCartSelection(state) {
-      state.selectedItemKeys = [];
-      persistSelection(state.selectedItemKeys);
     },
   },
   extraReducers: (builder) => {
@@ -643,14 +558,8 @@ const cartSlice = createSlice({
         state.loading = false;
         state.initialized = true;
         state.items = action.payload.localItems || [];
-        state.selectedItemKeys = syncSelectedItemKeys(
-          action.payload.selectedItemKeys || [],
-          [],
-          state.items
-        );
         state.source = action.payload.isAuthenticated ? "server" : "local";
         state.error = null;
-        persistSelection(state.selectedItemKeys);
       })
       .addCase(bootstrapCart.rejected, (state, action) => {
         state.loading = false;
@@ -675,16 +584,10 @@ const cartSlice = createSlice({
       })
       .addCase(syncCartAfterLogin.fulfilled, (state, action) => {
         state.loading = false;
-        state.selectedItemKeys = syncSelectedItemKeys(
-          state.selectedItemKeys,
-          state.items,
-          action.payload || []
-        );
         state.items = action.payload || [];
         state.source = "server";
         state.lastSyncedAt = new Date().toISOString();
         state.error = null;
-        persistSelection(state.selectedItemKeys);
       })
       .addCase(syncCartAfterLogin.rejected, (state, action) => {
         state.loading = false;
@@ -751,14 +654,10 @@ const cartSlice = createSlice({
 export default cartSlice.reducer;
 export const {
   clearCartUiState,
-  clearCartSelection,
   hydrateCartFromSignalR,
-  toggleCartItemSelection,
-  toggleSelectAllCartItems,
 } = cartSlice.actions;
 
 export const selectCartItems = (state) => state.cart.items;
-export const selectCartSelectedItemKeys = (state) => state.cart.selectedItemKeys;
 export const selectCartLoading = (state) => state.cart.loading;
 export const selectCartActionLoading = (state) => state.cart.actionLoading;
 export const selectCartError = (state) => state.cart.error;
@@ -767,51 +666,22 @@ export const selectCartItemCount = (state) =>
   (state.cart.items || []).reduce((total, item) => total + (item.quantity || 0), 0);
 
 export const selectCartSubtotal = (state) =>
-  (state.cart.items || []).reduce((total, item) => {
-    const quantity = item.quantity || 0;
-    const unitPrice = item.unitPrice || 0;
-    const subTotal = item.subTotal || unitPrice * quantity;
-    return total + subTotal;
-  }, 0);
+  getCartRawSubtotal(state.cart.items || []);
 
 export const selectCartInvalidItems = (state) =>
   (state.cart.items || []).filter(isItemInvalid);
 
-export const selectCartSelectedItems = (state) => {
-  const selectedKeySet = new Set(state.cart.selectedItemKeys || []);
-  return (state.cart.items || []).filter((item) => selectedKeySet.has(item.key));
-};
+export const selectCartCheckoutItems = (state) => state.cart.items || [];
 
-export const selectCartSelectedLineCount = (state) =>
-  selectCartSelectedItems(state).length;
+export const selectCartCheckoutLineCount = (state) =>
+  selectCartCheckoutItems(state).length;
 
-export const selectCartSelectedItemCount = (state) =>
-  selectCartSelectedItems(state).reduce(
-    (total, item) => total + (item.quantity || 0),
-    0
-  );
+export const selectCartDisplaySubtotal = (state) =>
+  getCartDisplaySubtotal(state.cart.items || []);
 
-export const selectCartSelectedSubtotal = (state) =>
-  selectCartSelectedItems(state).reduce((total, item) => {
-    const quantity = item.quantity || 0;
-    const unitPrice = item.unitPrice || 0;
-    const subTotal = item.subTotal || unitPrice * quantity;
-    return total + subTotal;
-  }, 0);
-
-export const selectCartSelectableItems = (state) =>
-  (state.cart.items || []).filter(isItemSelectable);
-
-export const selectCartSelectableItemCount = (state) =>
-  selectCartSelectableItems(state).length;
-
-export const selectCartAllSelectableSelected = (state) => {
-  const selectableItems = selectCartSelectableItems(state);
-  if (selectableItems.length === 0) return false;
-
-  const selectedKeySet = new Set(selectCartSelectedItemKeys(state));
-  return selectableItems.every((item) => selectedKeySet.has(item.key));
-};
+export const selectCartProductSavings = (state) =>
+  getCartSavingsTotal(state.cart.items || []);
 
 export const selectCartCanCheckout = (state) =>
-  selectCartSelectedItems(state).length > 0;
+  selectCartCheckoutItems(state).length > 0 &&
+  selectCartInvalidItems(state).length === 0;

@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -10,17 +9,20 @@ import {
   clearCartItems,
   removeCartItem,
   selectCartActionLoading,
-  selectCartAllSelectableSelected,
   selectCartCanCheckout,
+  selectCartDisplaySubtotal,
   selectCartInvalidItems,
   selectCartItemCount,
   selectCartItems,
-  selectCartSelectedItemKeys,
-  selectCartSelectedItemCount,
-  selectCartSelectedSubtotal,
-  toggleCartItemSelection,
-  toggleSelectAllCartItems,
+  selectCartProductSavings,
+  selectCartSubtotal,
 } from "../../store/slices/cartSlice";
+import {
+  getCartLineDiscountedUnitPrice,
+  getCartLineDisplaySubtotal,
+  getCartLineRawSubtotal,
+  getCartLineSavings,
+} from "../../utils/cartPricing";
 
 function formatPrice(value) {
   return new Intl.NumberFormat("vi-VN", {
@@ -43,36 +45,6 @@ function getItemIssueLabel(item) {
   }
 
   return "";
-}
-
-function getRawLineSubTotal(item) {
-  return (
-    Number(item?.subTotal) ||
-    (Number(item?.unitPrice) || 0) * (Number(item?.quantity) || 0)
-  );
-}
-
-function getCartLineSubTotal(item) {
-  const rawLineSubTotal = getRawLineSubTotal(item);
-
-  if (!item?.hasCartPromotion) {
-    return rawLineSubTotal;
-  }
-
-  const discountedLineSubTotal = Number(item?.discountedSubTotal);
-  return Number.isFinite(discountedLineSubTotal)
-    ? Math.max(discountedLineSubTotal, 0)
-    : rawLineSubTotal;
-}
-
-function getDiscountedUnitPrice(item) {
-  const unitPrice = Number(item?.unitPrice) || 0;
-  const discountAmountPerItem = Math.max(Number(item?.discountAmountPerItem) || 0, 0);
-  return Math.max(unitPrice - discountAmountPerItem, 0);
-}
-
-function getLineSavings(item) {
-  return Math.max(getRawLineSubTotal(item) - getCartLineSubTotal(item), 0);
 }
 
 function getPromotionBadgeLabel(item) {
@@ -105,37 +77,13 @@ export default function CartPage() {
   const { isAuthenticated } = useAuth();
 
   const items = useSelector(selectCartItems);
-  const selectedItemKeys = useSelector(selectCartSelectedItemKeys);
   const itemCount = useSelector(selectCartItemCount);
-  const selectedItemCount = useSelector(selectCartSelectedItemCount);
-  const selectedSubtotal = useSelector(selectCartSelectedSubtotal);
+  const rawSubtotal = useSelector(selectCartSubtotal);
+  const displaySubtotal = useSelector(selectCartDisplaySubtotal);
+  const productSavings = useSelector(selectCartProductSavings);
   const invalidItems = useSelector(selectCartInvalidItems);
   const canCheckout = useSelector(selectCartCanCheckout);
-  const allSelectableSelected = useSelector(selectCartAllSelectableSelected);
   const actionLoading = useSelector(selectCartActionLoading);
-
-  const selectedPricing = useMemo(() => {
-    const selectedKeySet = new Set(selectedItemKeys);
-
-    return items.reduce(
-      (totals, item) => {
-        if (!selectedKeySet.has(item.key)) {
-          return totals;
-        }
-
-        totals.displaySubtotal += getCartLineSubTotal(item);
-        totals.savings += getLineSavings(item);
-        return totals;
-      },
-      {
-        displaySubtotal: 0,
-        savings: 0,
-      },
-    );
-  }, [items, selectedItemKeys]);
-
-  const selectedDisplaySubtotal = selectedPricing.displaySubtotal;
-  const selectedSavings = selectedPricing.savings;
 
   const handleChangeQuantity = async (item, nextQuantity) => {
     const safeQuantity = Math.max(Number(nextQuantity) || 0, 0);
@@ -215,57 +163,35 @@ export default function CartPage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="flex-1 space-y-4">
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-slate-900">Giỏ hàng</h1>
-              <p className="mt-1 text-sm text-slate-500">
-                Chọn những sản phẩm bạn muốn mang sang bước thanh toán.
-              </p>
-            </div>
-
-            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-              <input
-                type="checkbox"
-                checked={allSelectableSelected}
-                onChange={() => dispatch(toggleSelectAllCartItems())}
-                className="h-4 w-4 rounded border-slate-300 text-[#0090D0] focus:ring-[#0090D0]"
-              />
-              Chọn tất cả sản phẩm hợp lệ
-            </label>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h1 className="text-2xl font-semibold text-slate-900">Giỏ hàng</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Kiểm tra lại sản phẩm, số lượng và giá trước khi thanh toán.
+            </p>
           </div>
 
           {items.map((item) => {
             const issueLabel = getItemIssueLabel(item);
-            const isSelectable = !issueLabel;
-            const rawLineSubTotal = getRawLineSubTotal(item);
-            const displayLineSubTotal = getCartLineSubTotal(item);
-            const discountedUnitPrice = getDiscountedUnitPrice(item);
-            const lineSavings = getLineSavings(item);
+            const rawLineSubtotal = getCartLineRawSubtotal(item);
+            const displayLineSubtotal = getCartLineDisplaySubtotal(item);
+            const discountedUnitPrice = getCartLineDiscountedUnitPrice(item);
+            const lineSavings = getCartLineSavings(item);
             const hasVisibleDiscount =
-              Boolean(item?.hasCartPromotion) && displayLineSubTotal < rawLineSubTotal;
+              Boolean(item?.hasCartPromotion) &&
+              displayLineSubtotal < rawLineSubtotal;
             const promotionBadgeLabel = getPromotionBadgeLabel(item);
 
             return (
               <div
                 key={item.key}
                 className={`rounded-xl border bg-white p-4 ${
-                  isSelectable
-                    ? "border-slate-200"
-                    : "border-amber-200 bg-amber-50/40"
+                  issueLabel
+                    ? "border-amber-200 bg-amber-50/40"
+                    : "border-slate-200"
                 }`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row">
                   <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(
-                        isSelectable && selectedItemKeys.includes(item.key),
-                      )}
-                      onChange={() => dispatch(toggleCartItemSelection(item.key))}
-                      disabled={!isSelectable}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-[#0090D0] focus:ring-[#0090D0] disabled:cursor-not-allowed"
-                    />
-
                     <img
                       src={
                         item.productImage ||
@@ -308,17 +234,17 @@ export default function CartPage() {
                       </div>
                     )}
 
-                    {item.availableStock !== null && (
+                    {item.availableStock !== null ? (
                       <div className="mt-1 text-xs text-slate-500">
                         Tồn kho: {item.availableStock}
                       </div>
-                    )}
+                    ) : null}
 
-                    {issueLabel && (
+                    {issueLabel ? (
                       <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         {issueLabel}
                       </div>
-                    )}
+                    ) : null}
 
                     <div className="mt-3 flex items-center gap-2">
                       <button
@@ -354,11 +280,11 @@ export default function CartPage() {
                     <div className="text-right">
                       {hasVisibleDiscount ? (
                         <div className="text-sm text-slate-400 line-through">
-                          {formatPrice(rawLineSubTotal)}
+                          {formatPrice(rawLineSubtotal)}
                         </div>
                       ) : null}
                       <div className="font-semibold text-red-600">
-                        {formatPrice(displayLineSubTotal)}
+                        {formatPrice(displayLineSubtotal)}
                       </div>
                     </div>
                     <button
@@ -389,44 +315,43 @@ export default function CartPage() {
             </div>
 
             <div className="flex justify-between text-sm text-slate-600">
-              <span>Tổng số lượng sẽ mua</span>
-              <span>{selectedItemCount}</span>
+              <span>Số mặt hàng</span>
+              <span>{items.length}</span>
             </div>
 
             <div className="flex justify-between text-base font-semibold text-slate-900">
               <span>Tạm tính</span>
               <span className="flex flex-col items-end">
-                {selectedSavings > 0 ? (
+                {productSavings > 0 ? (
                   <span className="text-xs font-medium text-slate-400 line-through">
-                    {formatPrice(selectedSubtotal)}
+                    {formatPrice(rawSubtotal)}
                   </span>
                 ) : null}
-                <span className="text-red-600">
-                  {formatPrice(selectedDisplaySubtotal)}
-                </span>
+                <span className="text-red-600">{formatPrice(displaySubtotal)}</span>
               </span>
             </div>
 
-            {selectedSavings > 0 ? (
+            {productSavings > 0 ? (
               <div className="flex justify-between text-sm text-emerald-700">
-                <span>Tiết kiệm tự động</span>
-                <span>-{formatPrice(selectedSavings)}</span>
+                <span>Tiết kiệm từ giá sản phẩm</span>
+                <span>-{formatPrice(productSavings)}</span>
               </div>
             ) : null}
 
-            {invalidItems.length > 0 && (
+            {invalidItems.length > 0 ? (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                Có {invalidItems.length} sản phẩm không hợp lệ trong giỏ. Bạn vẫn
-                có thể thanh toán các sản phẩm hợp lệ đã chọn.
+                Có {invalidItems.length} sản phẩm không hợp lệ trong giỏ. Vui
+                lòng cập nhật số lượng hoặc xóa các sản phẩm này trước khi thanh
+                toán.
               </div>
-            )}
+            ) : null}
 
             {canCheckout ? (
               <Link
                 to="/checkout"
                 className="inline-flex h-11 w-full items-center justify-center rounded-md bg-green-700 font-semibold text-white hover:bg-green-800"
               >
-                Thanh toán các sản phẩm đã chọn
+                Thanh toán toàn bộ giỏ hàng
               </Link>
             ) : (
               <button
@@ -434,7 +359,7 @@ export default function CartPage() {
                 disabled
                 className="h-11 w-full rounded-md bg-green-700 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Chọn sản phẩm để thanh toán
+                Cần xử lý sản phẩm không hợp lệ
               </button>
             )}
 
